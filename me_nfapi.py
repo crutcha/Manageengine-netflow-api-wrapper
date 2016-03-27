@@ -9,8 +9,8 @@ class netflow_api:
 
 	LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'	
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
-	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword=admin&sid=0.28584800255841862'
-	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username=admin&j_password=admin&signInAutomatically=on&uname='
+	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
+	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
 	GET_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
     "Accept-Encoding": "gzip, deflate, sdch",
@@ -47,7 +47,7 @@ class netflow_api:
 			#Load home page for cookie/referrer reasons, grab encrypted key
 			home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
 			j_session_id = home_page.cookies['JSESSIONID']
-			encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, netflow_api.ENCRYPTED_PWORD_URI)).text
+			encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, netflow_api.ENCRYPTED_PWORD_URI.format(self.password))).text
 			
 			#Update cookies and headers
 			self.request.cookies['domainNameForAutomaticSignIn'] = 'Authenticator'
@@ -60,17 +60,21 @@ class netflow_api:
 			
 			#POST to j_security_check for auth, grab NFA_SSO value
 			post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(self.protocol, self.hostname, j_session_id)
-			post_response = self.request.post(post_url, data=netflow_api.AUTH_PAYLOAD)
+			post_response = self.request.post(post_url, data=netflow_api.AUTH_PAYLOAD.format(self.user, self.password))
 			del self.request.headers['Content-Type']
-
+			
 			#FUTURE: Add some logic in here to make sure we've got HTTP 302 with set-cookie, verify NFA_SSO in list, etc...
-			cookie_header = post_response.history[1].headers['set-cookie']
-			nfa_sso_header = cookie_header.split()[3]			
-			self.NFA_SSO = nfa_sso_header.split('=')[1][:-1]
-			self.request.cookies['NFA__SSO'] = self.NFA_SSO
-
-			#Finally, set logged_in attribute to True
-			self.logged_in = True
+			try:
+				cookie_header = post_response.history[1].headers['set-cookie']
+				nfa_sso_header = cookie_header.split()[3]			
+				self.NFA_SSO = nfa_sso_header.split('=')[1][:-1]
+				self.request.cookies['NFA__SSO'] = self.NFA_SSO
+				self.logged_in = True
+			except Exception as e:
+				if not post_response.history:
+					print('POST response history is empty. Probably failed authentication.')
+				else:
+					print('Unknown error trying to grab cookie data from POST response data.')
 
 	def get_ip_groups(self):
 		
