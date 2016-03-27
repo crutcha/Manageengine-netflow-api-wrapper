@@ -7,7 +7,14 @@ import pdb
 
 class netflow_api:
 
+	'''Class for interacting with ManageEngine Netflow Analyzer API. 
+	API calls are handled with requests session object. All GETs
+	against API will return JSON object to caller.
+	'''
+
+
 	LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'	
+	LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
 	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
 	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
@@ -77,7 +84,17 @@ class netflow_api:
 					print('Unknown error trying to grab cookie data from POST response data.')
 
 	def get_ip_groups(self):
-		
+	
+		'''All IPGroups returned as JSON object'''
+	
 		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, netflow_api.LISTIPGROUP_URI, self.api_key)
 		response = self.request.get(full_url)
-		return response.text
+		return json.loads(response.text)
+
+	def get_billing(self):
+
+		'''All billing plans returned as JSON'''
+		
+		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, netflow_api.LISTBILLPLAN_URI, self.api_key)
+		response = self.request.get(full_url)
+		return json.loads(response.text)
