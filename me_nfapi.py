@@ -35,13 +35,18 @@ class netflow_api:
 
 	def login(self):
 
+		'''Create requests session object, modify it's cookie/header
+		content, log in to API and retrieve NFA_SSO token
+		to be used for all functions
+		'''
+
 		if self.logged_in:
 			print('User is already logged in')
 		else:
-			pdb.set_trace()
 			
 			#Load home page for cookie/referrer reasons, grab encrypted key
 			home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
+			j_session_id = home_page.cookies['JSESSIONID']
 			encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, netflow_api.ENCRYPTED_PWORD_URI)).text
 			
 			#Update cookies and headers
@@ -53,14 +58,22 @@ class netflow_api:
 			self.request.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 			self.request.headers['Accept-Encoding'] = 'gzip, deflate'
 			
-			#POST to j_security_check for auth
-			response = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, netflow_api.LOGIN_URI), data=netflow_api.AUTH_PAYLOAD)
+			#POST to j_security_check for auth, grab NFA_SSO value
+			post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(self.protocol, self.hostname, j_session_id)
+			post_response = self.request.post(post_url, data=netflow_api.AUTH_PAYLOAD)
+			del self.request.headers['Content-Type']
+
+			#FUTURE: Add some logic in here to make sure we've got HTTP 302 with set-cookie, verify NFA_SSO in list, etc...
+			cookie_header = post_response.history[1].headers['set-cookie']
+			nfa_sso_header = cookie_header.split()[3]			
+			self.NFA_SSO = nfa_sso_header.split('=')[1][:-1]
+			self.request.cookies['NFA__SSO'] = self.NFA_SSO
+
+			#Finally, set logged_in attribute to True
+			self.logged_in = True
 
 	def get_ip_groups(self):
 		
 		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, netflow_api.LISTIPGROUP_URI, self.api_key)
-		request.auth = (self.user, self.password)
-		request.headers = netflow_api.GET_HEADERS
-		response = request.get(full_url)
-		#request = requests.get(full_url, headers=netflow_api.GET_HEADERS)
-		pdb.set_trace()	
+		response = self.request.get(full_url)
+		return response.text
