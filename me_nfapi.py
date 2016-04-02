@@ -5,7 +5,7 @@ import requests
 import json
 import pdb
 
-class netflow_api:
+class nfapi_session:
 
 	'''Class for interacting with ManageEngine Netflow Analyzer API. 
 	API calls are handled with requests session object. All GETs
@@ -14,6 +14,7 @@ class netflow_api:
 
 
 	LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'	
+	ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
 	LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
 	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
@@ -54,7 +55,7 @@ class netflow_api:
 			#Load home page for cookie/referrer reasons, grab encrypted key
 			home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
 			j_session_id = home_page.cookies['JSESSIONID']
-			encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, netflow_api.ENCRYPTED_PWORD_URI.format(self.password))).text
+			encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ENCRYPTED_PWORD_URI.format(self.password))).text
 			
 			#Update cookies and headers
 			self.request.cookies['domainNameForAutomaticSignIn'] = 'Authenticator'
@@ -67,7 +68,7 @@ class netflow_api:
 			
 			#POST to j_security_check for auth, grab NFA_SSO value
 			post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(self.protocol, self.hostname, j_session_id)
-			post_response = self.request.post(post_url, data=netflow_api.AUTH_PAYLOAD.format(self.user, self.password))
+			post_response = self.request.post(post_url, data=nfapi_session.AUTH_PAYLOAD.format(self.user, self.password))
 			del self.request.headers['Content-Type']
 			
 			#FUTURE: Add some logic in here to make sure we've got HTTP 302 with set-cookie, verify NFA_SSO in list, etc...
@@ -82,12 +83,13 @@ class netflow_api:
 					print('POST response history is empty. Probably failed authentication.')
 				else:
 					print('Unknown error trying to grab cookie data from POST response data.')
+					print(e.args)
 
 	def get_ip_groups(self):
 	
 		'''All IPGroups returned as JSON object'''
 	
-		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, netflow_api.LISTIPGROUP_URI, self.api_key)
+		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.LISTIPGROUP_URI, self.api_key)
 		response = self.request.get(full_url)
 		return json.loads(response.text)
 
@@ -95,6 +97,47 @@ class netflow_api:
 
 		'''All billing plans returned as JSON'''
 		
-		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, netflow_api.LISTBILLPLAN_URI, self.api_key)
+		full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.LISTBILLPLAN_URI, self.api_key)
 		response = self.request.get(full_url)
 		return json.loads(response.text)
+
+	def add_ip_group(self, **kwargs):
+		
+		'''Function to add IPGroup. Takes the following keyword arguments with example call:
+
+		GroupName: String of group name (IE: 'test-group')
+		Desc: Description for IP Group (IE: 'Test group for python docstring')
+		speed: Speed in bits per second (IE: '50000')
+		DevList: List of interfaces/devices tied to IP Group. Value of -1 means all. 
+		status: Type of IP data being added to group, IE: include/exclude/between sites (IE: 'include,include,include')
+		IPData: List of IP Data seperated by comma. Can be combination of addresses, ranges, or sites. (IE: '8.8.8.8-8.8.4.4-1.1.1.0,255.255.255.0')
+		IPType: List of IP types seperate by comman, Can be combination of ipaddress, iprange, ipnetwork. (IE: 'ipaddress,ipaddress,ipnetwork')
+		ToIPType: Looks like this is only used for status type of 'between' and is the  definition of the remote endpoint in between definition. Should
+				  take same values as IPType. 
+		
+		**kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload. 
+		'''
+
+		#Make sure session is logged in or else POST will fail.
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		#Make sure we have received legitimate keyword arguments. These will be NoneType if not passed properly. Maybe we can change this to comprehension later....
+		required_args = ['GroupName', 'Desc', 'speed', 'DevList', 'status', 'IPData', 'IPType']
+
+		for arg in required_args:
+			if not kwargs.get(arg):
+				raise Exception('Missing required keywoard argument for add_ip_group: {0:s}'.format(arg))
+
+		#Checks passed. Formulate data payload and POST to API. 
+		pdb.set_trace()
+		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI, self.api_key)
+		response = self.request.post(post_url, data=kwargs)
+		
+		#Validate response
+		if 'Group name already exists' in response.text:
+			pass #ADD SOME LOGGING HERE
+		#NEED ADDITIONAL INTERNAL SERVER ERROR CHECKING RIGHT HERE
+		if response.status_code == 200 and 'IPGroup added successfully' in response.text:
+			#WE'RE GOOD. ADD LOGGING STATEMENT HERE
+			return True	
