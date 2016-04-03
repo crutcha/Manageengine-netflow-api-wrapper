@@ -146,28 +146,29 @@ class nfapi_session:
 
 	def add_billing(self):
 
-	'''Function to add billing group. Takes the following case-sensitve keyword arguments with example call:
 
-	name:  (IE: 'somecompany-billing')
-	desc:  (IE: 'somecompany BS')
-	costUnit: (IE: 'USD')
-	periodType: (IE:'monthly')
-	genDate: (IE: '1')
-	timezone: (IE: 'US/eastern')
-	apiKey: WTF? REALLY?
-	baseSpeed: (IE: '50000')
-	baseCost: (IE: '500')
-	addSpeed: (IE: '1')
-	addCost: (IE: '600')
-	type: maybe this is volume? (IE: 'speed')
-	perc: (IE: '40')
-	intfID: 
-	ipgID: (IE: '2500033,2500027,2500034,2500025')
-	bussID:
-	emailID: (IE: 'someonewhocares@somecompany.com')
-	emailsub: (IE: 'billing report for some crap')
+		'''Function to add billing group. Takes the following case-sensitve keyword arguments with example call:
 
-	**kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload.
-	'''
-	
+		name:  (IE: 'somecompany-billing')
+		desc:  (IE: 'somecompany BS')
+		costUnit: (IE: 'USD')
+		periodType: (IE:'monthly')
+		genDate: (IE: '1')
+		timezone: (IE: 'US/eastern')
+		apiKey: WTF? REALLY?
+		baseSpeed: (IE: '50000')
+		baseCost: (IE: '500')
+		addSpeed: (IE: '1')
+		addCost: (IE: '600')
+		type: maybe this is volume? (IE: 'speed')
+		perc: (IE: '40')
+		intfID: 
+		ipgID: (IE: '2500033,2500027,2500034,2500025')
+		bussID:
+		emailID: (IE: 'someonewhocares@somecompany.com')
+		emailsub: (IE: 'billing report for some crap')
+
+		**kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload.
+		'''
+		
 		pass
