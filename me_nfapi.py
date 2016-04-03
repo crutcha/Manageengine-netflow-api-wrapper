@@ -28,7 +28,7 @@ class nfapi_session:
 	 "Connection": "keep-alive",
 	}
 
-	def __init__(self, hostname, api_key, user, password, port='8080', protocol='http'):
+	def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
 		
 		self.hostname = hostname
 		self.api_key = api_key
@@ -103,7 +103,7 @@ class nfapi_session:
 
 	def add_ip_group(self, **kwargs):
 		
-		'''Function to add IPGroup. Takes the following keyword arguments with example call:
+		'''Function to add IPGroup. Takes the following case-sentive keyword arguments with example call:
 
 		GroupName: String of group name (IE: 'test-group')
 		Desc: Description for IP Group (IE: 'Test group for python docstring')
@@ -130,7 +130,6 @@ class nfapi_session:
 				raise Exception('Missing required keywoard argument for add_ip_group: {0:s}'.format(arg))
 
 		#Checks passed. Formulate data payload and POST to API. 
-		pdb.set_trace()
 		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI, self.api_key)
 		response = self.request.post(post_url, data=kwargs)
 		
@@ -138,6 +137,37 @@ class nfapi_session:
 		if 'Group name already exists' in response.text:
 			pass #ADD SOME LOGGING HERE
 		#NEED ADDITIONAL INTERNAL SERVER ERROR CHECKING RIGHT HERE
-		if response.status_code == 200 and 'IPGroup added successfully' in response.text:
+		elif response.status_code == 200 and 'IPGroup added successfully' in response.text:
 			#WE'RE GOOD. ADD LOGGING STATEMENT HERE
+			print('Success')
 			return True	
+		else:
+			print('Something went wrong.')
+
+	def add_billing(self):
+
+	'''Function to add billing group. Takes the following case-sensitve keyword arguments with example call:
+
+	name:  (IE: 'somecompany-billing')
+	desc:  (IE: 'somecompany BS')
+	costUnit: (IE: 'USD')
+	periodType: (IE:'monthly')
+	genDate: (IE: '1')
+	timezone: (IE: 'US/eastern')
+	apiKey: WTF? REALLY?
+	baseSpeed: (IE: '50000')
+	baseCost: (IE: '500')
+	addSpeed: (IE: '1')
+	addCost: (IE: '600')
+	type: maybe this is volume? (IE: 'speed')
+	perc: (IE: '40')
+	intfID: 
+	ipgID: (IE: '2500033,2500027,2500034,2500025')
+	bussID:
+	emailID: (IE: 'someonewhocares@somecompany.com')
+	emailsub: (IE: 'billing report for some crap')
+
+	**kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload.
+	'''
+	
+		pass
