@@ -16,6 +16,7 @@ class nfapi_session:
 	LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'	
 	ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
 	LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
+	ADDBILLPLAN_URI = '/api/json/nfabilling/addBillPlan'
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
 	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
 	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
@@ -144,7 +145,7 @@ class nfapi_session:
 		else:
 			print('Something went wrong.')
 
-	def add_billing(self):
+	def add_billing(self, **kwargs):
 
 
 		'''Function to add billing group. Takes the following case-sensitve keyword arguments with example call:
@@ -161,7 +162,7 @@ class nfapi_session:
 		addSpeed: (IE: '1')
 		addCost: (IE: '600')
 		type: maybe this is volume? (IE: 'speed')
-		perc: (IE: '40')
+		perc: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
 		intfID: 
 		ipgID: (IE: '2500033,2500027,2500034,2500025')
 		bussID:
@@ -171,4 +172,26 @@ class nfapi_session:
 		**kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload.
 		'''
 		
-		pass
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		#Default timezone to eastern if not already defined
+		if not kwargs.get('timezone'):
+			kwargs['timezone'] = 'US/Eastern'
+
+		#Default addSpeed/addCost if not defined since it's not required
+		if not kwargs.get('addSpeed'):
+			kwargs['addSpeed'] = '0'
+		if not kwargs.get('addCost'):
+			kwargs['addCost'] = '0'
+
+		#Adding IP group ID as required for now since there's no reason we should have a billing group not tied to an IP group
+		required_args = ['name', 'desc', 'costUnit', 'periodType', 'genDate', 'timezone', 'baseSpeed', 'baseCost', 'type', 'perc', 'emailID', 'emailsub', 'ipgID'] 
+
+		for arg in required_args:
+			if not kwargs.get(arg):
+				raise Exception('Missing required keyword argument for add_billing: {0:s}'.format(arg))
+
+		#Checks passed. Formuate data paload and POST to API.
+		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI, self.api_key)
+		response = self.request.post(post_url, data=kwargs)
