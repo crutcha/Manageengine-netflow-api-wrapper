@@ -17,6 +17,7 @@ class nfapi_session:
 	ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
 	LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
 	ADDBILLPLAN_URI = '/api/json/nfabilling/addBillPlan'
+	MODIFYBILLPLAN_URI = '/api/json/nfabilling/modifyBillPlan'
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
 	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
 	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
@@ -133,17 +134,8 @@ class nfapi_session:
 		#Checks passed. Formulate data payload and POST to API. 
 		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI, self.api_key)
 		response = self.request.post(post_url, data=kwargs)
-		
-		#Validate response
-		if 'Group name already exists' in response.text:
-			pass #ADD SOME LOGGING HERE
-		#NEED ADDITIONAL INTERNAL SERVER ERROR CHECKING RIGHT HERE
-		elif response.status_code == 200 and 'IPGroup added successfully' in response.text:
-			#WE'RE GOOD. ADD LOGGING STATEMENT HERE
-			print('Success')
-			return True	
-		else:
-			print('Something went wrong.')
+		return json.loads(response.text)
+	
 
 	def add_billing(self, **kwargs):
 
@@ -195,3 +187,21 @@ class nfapi_session:
 		#Checks passed. Formuate data paload and POST to API.
 		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI, self.api_key)
 		response = self.request.post(post_url, data=kwargs)
+		return json.loads(response.text)
+
+	def modify_billing(self, **kwargs):
+
+		'''Function to modify billing object. Looks like it takes same paramters as
+		add_billing, but must also include a unique identifier 'plan id'.
+		'''
+
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		#We should only need to check for 'planid', everything else should be provided from get_billing and passed in?
+		if not kwargs.get('planid'):
+			raise Exception('Missing required paramter. Billing plan identifier must be passed into modify_billing function.')
+
+		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYBILLPLAN_URI, self.api_key)
+		response = self.request.post(post_url, data=kwargs)
+		return json.loads(response.text)	
