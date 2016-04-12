@@ -21,24 +21,24 @@ class nfapi_billplan:
 
 	def __init__(self, name=None, desc=None, costUnit=None, periodType=None, genData=None, timezone=None, apiKey=None, baseSpeed=None, addSpeed=None, addCost=None, type=None, perc=None, intfID=None, ipgID=None, bussID=None, bussID=None, emailID=None, emailsub=None) 
 
-	self.name = name
-	self.desc = desc
-	self.costUnit = costUnit
-	self.periodType = periodType
-	self.genDate = genData
-	self.timezone = timezone
-	self.apiKey = apiKey
-	self.baseSpeed = baseSpeed
-	self.baseCost = baseCost
-	self.addSpeed = appSpeed
-	self.addCost = addCost
-	self.type = type
-	self.perc = perc
-	self.intfID = intfID
-	self.ipgID = ipgID
-	self.bussID = bussID
-	self.emailID = emailID
-	self.emailsub = emailsub	
+		self.name = name
+		self.desc = desc
+		self.costUnit = costUnit
+		self.periodType = periodType
+		self.genDate = genData
+		self.timezone = timezone
+		self.apiKey = apiKey
+		self.baseSpeed = baseSpeed
+		self.baseCost = baseCost
+		self.addSpeed = appSpeed
+		self.addCost = addCost
+		self.type = type
+		self.perc = perc
+		self.intfID = intfID
+		self.ipgID = ipgID
+		self.bussID = bussID
+		self.emailID = emailID
+		self.emailsub = emailsub	
 
 class nfapi_session:
 
