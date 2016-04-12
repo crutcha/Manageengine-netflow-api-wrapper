@@ -19,7 +19,7 @@ class nfapi_ipgroup:
 
 class nfapi_billplan:
 
-	def __init__(self, name=None, desc=None, costUnit=None, periodType=None, genData=None, timezone=None, apiKey=None, baseSpeed=None, addSpeed=None, addCost=None, type=None, perc=None, intfID=None, ipgID=None, bussID=None, bussID=None, emailID=None, emailsub=None) 
+	def __init__(self, name=None, desc=None, costUnit=None, periodType=None, genData=None, timezone=None, apiKey=None, baseSpeed=None, addSpeed=None, addCost=None, type=None, perc=None, intfID=None, ipgID=None, bussID=None, bussID=None, emailID=None, emailsub=None): 
 
 		self.name = name
 		self.desc = desc
