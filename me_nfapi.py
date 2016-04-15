@@ -168,6 +168,10 @@ class nfapi_session:
 		if not self.logged_in:
 			raise Exception('Session is not logged in. Call login() method to login first.')
 
+		#Apparently this URI doesn't include API key nor does it work that way, so we have to shim 
+		#the API key into our kwargs dictionary being passed as payload
+		kwargs['apiKey'] = self.api_key
+
 		#Default timezone to eastern if not already defined
 		if not kwargs.get('timezone'):
 			kwargs['timezone'] = 'US/Eastern'
@@ -186,7 +190,7 @@ class nfapi_session:
 				raise Exception('Missing required keyword argument for add_billing: {0:s}'.format(arg))
 
 		#Checks passed. Formuate data paload and POST to API.
-		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI, self.api_key)
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI)
 		response = self.request.post(post_url, data=kwargs)
 		return json.loads(response.text)
 
