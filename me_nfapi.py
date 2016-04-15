@@ -136,7 +136,8 @@ class nfapi_session:
 				raise Exception('Missing required keywoard argument for add_ip_group: {0:s}'.format(arg))
 
 		#Checks passed. Formulate data payload and POST to API. 
-		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI, self.api_key)
+		kwargs['apiKey'] = self.api_key
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI)
 		response = self.request.post(post_url, data=kwargs)
 		return json.loads(response.text)
 	
@@ -269,6 +270,3 @@ class nfapi_session:
 		response = self.request.post(post_url, data=payload)
 		return json.loads(response.text)
 
-		#post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}?planID={4:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEBILLPLAN_URI, self.api_key, PlanID)
-		#response = self.request.post(post_url)
-		#return json.loads(response.text) 
