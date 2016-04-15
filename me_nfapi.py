@@ -19,6 +19,9 @@ class nfapi_session:
 	LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
 	ADDBILLPLAN_URI = '/api/json/nfabilling/addBillPlan'
 	MODIFYBILLPLAN_URI = '/api/json/nfabilling/modifyBillPlan'
+	MODIFYIPGROUP_URI = '/api/json/nfaipgroup/modifyIPGroup'
+	DELETEIPGROUP_URI = '/api/json/nfaipgroup/deleteIPGroup'
+	DELETEBILLPLAN_URI = '/api/json/nfabilling/deleteBillPlan'
 	LOGIN_URI = '/apiclient/ember/Login.jsp'
 	ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
 	AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
@@ -96,7 +99,7 @@ class nfapi_session:
 		response = self.request.get(full_url)
 		return json.loads(response.text)
 
-	def get_billing(self):
+	def get_bill_plans(self):
 
 		'''All billing plans returned as JSON'''
 		
@@ -207,6 +210,65 @@ class nfapi_session:
 		if not kwargs.get('planid'):
 			raise Exception('Missing required paramter. Billing plan identifier must be passed into modify_billing function.')
 
-		post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYBILLPLAN_URI, self.api_key)
+		#Modify URIs do not pass API key in URI like the get URIs do. We apparently have to pass API key in 
+		#as part of url-encoded payload. 
+		kwargs['apiKey'] = self.api_key
+
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYBILLPLAN_URI)
+		response = self.request.post(post_url, data=kwargs)
+		return json.loads(response.text)
+
+	def modify_ip_group(self, **kwargs):
+
+		'''Function to modify IPGroup object. Doesn't appear to have any unique parameters, should be able to
+		query for IPGroup object with get_ip_groups, modify what we need to modify, then pass to this function 
+		to udpate the existing object.
+		'''
+		
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		#Modify URIs do not pass API key in URI like the get URIs do. We apparently have to pass API key in 
+		#as part of url-encoded payload. 
+		kwargs['apiKey'] = self.api_key
+		
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYIPGROUP_URI)
 		response = self.request.post(post_url, data=kwargs)
 		return json.loads(response.text)	
+
+	def delete_ip_group(self, GroupName):
+
+		'''Function to delete an IPGroup object. The only required parameter for this is GroupName.
+		'''
+
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		payload = {}
+		payload['apiKey'] = self.api_key
+		payload['GroupName'] = GroupName
+
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEIPGROUP_URI)
+		response = self.request.post(post_url, data=payload)
+		return json.loads(response.text)
+
+	def delete_bill_plan(self, PlanID):
+
+		'''Function to delete billing plan object. The format for this call is, of course, different than the others. No data is
+		passed as urlencoded payload, API key and PlanID are both sent in the URI.
+		'''
+		
+		if not self.logged_in:
+			raise Exception('Session is not logged in. Call login() method to login first.')
+
+		payload = {}
+		payload['apiKey'] = self.api_key
+		payload['planID'] = PlanID
+
+		post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEBILLPLAN_URI)
+		response = self.request.post(post_url, data=payload)
+		return json.loads(response.text)
+
+		#post_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}?planID={4:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEBILLPLAN_URI, self.api_key, PlanID)
+		#response = self.request.post(post_url)
+		#return json.loads(response.text) 
