@@ -1,12 +1,10 @@
-__author__ = 'Andrew Crutchfield'
-__version__ = '0.9'
-
+from __future__ import print_function
 import requests
 import json
 import pdb
 
 
-class nfapi_session:
+class APISession:
 
     '''Class for interacting with ManageEngine Netflow Analyzer API. 
     API calls are handled with requests session object. All GETs
@@ -46,7 +44,54 @@ class nfapi_session:
         self.request = requests.Session()
         self.logged_in = False
         self.NFA_SSO = None
-        print('Successfully initialized API object.')
+
+    #=================================================================
+    # Shared/General Methods
+    #=================================================================
+
+    def _get(self, uri):
+        '''Method used for GET functions of API.'''
+
+        #Validate session is logged in
+        if not self.logged_in:
+            raise Exception('Session is not logged in.')
+
+        url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(
+            self.protocol,
+            self.hostname,
+            uri,
+            self.api_key
+        )
+        response = self.request.get(url)
+        return json.loads(response.text)
+
+    def _post(self, uri, **kwargs):
+        '''Method used for POST functions of API.'''
+
+        #Validate session is logged in
+        if not self.logged_in:
+            raise Exception('Session is not logged in')
+        
+        url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(
+            self.protocol,
+            self.hostname,
+            uri
+        )
+
+        #Add API key to kwargs dict
+        kwargs['apiKey'] = self.api_key
+
+        response = self.request.post(url, data=kwargs)
+        return json.loads(response.text)
+
+    def _check_required_args(self, arglist, **kwargs):
+        '''Validated all required arguments for method exist.'''
+
+        for arg in arglist:
+            if not kwargs.get(arg):
+                print('Missing required argument: {0}'.format(arg))
+                return False
+            return True
 
     def login(self):
 
@@ -62,20 +107,36 @@ class nfapi_session:
             #Load home page for cookie/referrer reasons, grab encrypted key
             home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
             j_session_id = home_page.cookies['JSESSIONID']
-            encrypt_key = self.request.post('{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ENCRYPTED_PWORD_URI.format(self.password))).text
+            encrypt_key = self.request.post(
+                '{0:s}://{1:s}{2:s}'.format(
+                    self.protocol,
+                    self.hostname,
+                    nfapi_session.ENCRYPTED_PWORD_URI.format(self.password))
+            ).text
             
             #Update cookies and headers
-            self.request.cookies['domainNameForAutomaticSignIn'] = 'Authenticator'
-            self.request.cookies['userNameForAutomaticSignIn'] = self.user
-            self.request.cookies['signInAutomatically'] = 'True'
-            self.request.cookies['authrule_name'] = 'Authenticator'
-            self.request.cookies['encryptPassForAutomaticSignIn'] = encrypt_key
-            self.request.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            self.request.headers['Accept-Encoding'] = 'gzip, deflate'
+            self.request.cookies = {
+                'domainNameForAutomaticSignIn': 'Authenticator',
+                'userNameForAutomaticSignIn': self.user,
+                'signInAutomatically': 'True',
+                'authrule_name': 'Authenticator',
+                'encryptPassForAutomaticSignIn': encrypt_key,
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept-Encoding': 'gzip, deflate'
+            }
             
             #POST to j_security_check for auth, grab NFA_SSO value
-            post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(self.protocol, self.hostname, j_session_id)
-            post_response = self.request.post(post_url, data=nfapi_session.AUTH_PAYLOAD.format(self.user, self.password))
+            post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(
+                self.protocol,
+                self.hostname,
+                j_session_id
+            )
+
+            post_response = self.request.post(
+                post_url,
+                data=nfapi_session.AUTH_PAYLOAD.format(self.user, self.password)
+            )
+
             del self.request.headers['Content-Type']
             
             #FUTURE: Add some logic in here to make sure we've got HTTP 302 with set-cookie, verify NFA_SSO in list, etc...
@@ -91,6 +152,12 @@ class nfapi_session:
                 else:
                     print('Unknown error trying to grab cookie data from POST response data.')
                     print(e.args)
+
+
+    #=================================================================
+    # Feature specific methods
+    #=================================================================
+
 
     def get_ip_groups(self):
     
