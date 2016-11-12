@@ -49,7 +49,7 @@ class APISession:
     # Shared/General Methods
     #=================================================================
 
-    def _get(self, uri):
+    def _get(self, uri, **kwargs):
         '''Method used for GET functions of API.'''
 
         #Validate session is logged in
@@ -62,8 +62,8 @@ class APISession:
             uri,
             self.api_key
         )
-        response = self.request.get(url)
-        return json.loads(response.text)
+        response = self.request.get(url, data = kwargs)
+        return response
 
     def _post(self, uri, **kwargs):
         '''Method used for POST functions of API.'''
@@ -82,7 +82,7 @@ class APISession:
         kwargs['apiKey'] = self.api_key
 
         response = self.request.post(url, data=kwargs)
-        return json.loads(response.text)
+        return response
 
     def _check_required_args(self, arglist, **kwargs):
         '''Validated all required arguments for method exist.'''
@@ -111,20 +111,18 @@ class APISession:
                 '{0:s}://{1:s}{2:s}'.format(
                     self.protocol,
                     self.hostname,
-                    nfapi_session.ENCRYPTED_PWORD_URI.format(self.password))
+                    APISession.ENCRYPTED_PWORD_URI.format(self.password))
             ).text
-            
+           
             #Update cookies and headers
-            self.request.cookies = {
-                'domainNameForAutomaticSignIn': 'Authenticator',
-                'userNameForAutomaticSignIn': self.user,
-                'signInAutomatically': 'True',
-                'authrule_name': 'Authenticator',
-                'encryptPassForAutomaticSignIn': encrypt_key,
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept-Encoding': 'gzip, deflate'
-            }
-            
+            self.request.cookies['domainNameForAutomaticSignIn'] = 'Authenticator'
+            self.request.cookies['userNameForAutomaticSignIn'] = self.user
+            self.request.cookies['signInAutomatically'] = 'True'
+            self.request.cookies['authrule_name'] = 'Authenticator'
+            self.request.cookies['encryptPassForAutomaticSignIn'] = encrypt_key
+            self.request.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            self.request.headers['Accept-Encoding'] = 'gzip, deflate'
+ 
             #POST to j_security_check for auth, grab NFA_SSO value
             post_url = '{0:s}://{1:s}/j_security_check;jsessionid={2:s}'.format(
                 self.protocol,
@@ -134,7 +132,7 @@ class APISession:
 
             post_response = self.request.post(
                 post_url,
-                data=nfapi_session.AUTH_PAYLOAD.format(self.user, self.password)
+                data=APISession.AUTH_PAYLOAD.format(self.user, self.password)
             )
 
             del self.request.headers['Content-Type']
@@ -163,16 +161,14 @@ class APISession:
     
         '''All IPGroups returned as JSON object'''
     
-        full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.LISTIPGROUP_URI, self.api_key)
-        response = self.request.get(full_url)
+        response = self._get(APISession.LISTIPGROUP_URI)
         return json.loads(response.text)
 
     def get_bill_plans(self):
 
         '''All billing plans returned as JSON'''
         
-        full_url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(self.protocol, self.hostname, nfapi_session.LISTBILLPLAN_URI, self.api_key)
-        response = self.request.get(full_url)
+        response = self._get(APISession.LISTBILLPLAN_URI)
         return json.loads(response.text)
 
     def add_ip_group(self, **kwargs):
@@ -354,13 +350,13 @@ class APISession:
             'Data': 'IN',
             'isNetwork': 'OFF',
             'ResolveDNS': 'false',
-            'pageCount': 1,
+            'pageCount': '1',
             'expand': 'false',
-            'IPGroup': True,
-            'rows': 9,
-            'TimeFrame': 'today'
+            'IPGroup': 'true',
+            'rows': '9',
+            'TimeFrame': 'today',
+            'expand': 'true'
         }
-
-        get_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.CONVERSATION_URI)
-        response = self.request.get(get_url, params=payload)
+        import pdb; pdb.set_trace()
+        response = self._get(APISession.CONVERSATION_URI, data=payload)
         return json.loads(response.text)
