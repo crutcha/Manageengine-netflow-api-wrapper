@@ -4,7 +4,7 @@ import json
 import pdb
 
 
-class APISession:
+class NFApi:
 
     '''Class for interacting with ManageEngine Netflow Analyzer API. 
     API calls are handled with requests session object. All GETs
@@ -23,14 +23,13 @@ class APISession:
     CONVERSATION_URI = '/api/json/nfadevice/getConvData'
     LOGIN_URI = '/apiclient/ember/Login.jsp'
     ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
-    AUTH_PAYLOAD = 'AUTHRULE_NAME=Authenticator&clienttype=html&ScreenWidth=2272&ScreenHeight=1242&loginFromCookieData=false&ntlmv2=false&j_username={0:s}&j_password={1:s}&signInAutomatically=on&uname='
     GET_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
-     "Accept-Encoding": "gzip, deflate, sdch",
-    "Cache-Control": "max-age=0",
-     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-     "Accept-Language": "en-US,en;q=0.5",
-     "Connection": "keep-alive",
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
+        "Accept-Encoding": "gzip, deflate, sdch",
+        "Cache-Control": "max-age=0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Connection": "keep-alive",
     }
 
     def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
@@ -49,8 +48,10 @@ class APISession:
     # Shared/General Methods
     #=================================================================
 
-    def _get(self, uri, **kwargs):
-        '''Method used for GET functions of API.'''
+    def _get(self, uri, payload={}):
+        '''Method used for GET functions of API.
+        Payload must be passed in as dictionary, not kwargs.
+        '''
 
         #Validate session is logged in
         if not self.logged_in:
@@ -62,7 +63,7 @@ class APISession:
             uri,
             self.api_key
         )
-        response = self.request.get(url, data = kwargs)
+        response = self.request.get(url, params = payload)
         return response
 
     def _post(self, uri, **kwargs):
@@ -103,6 +104,20 @@ class APISession:
         if self.logged_in:
             print('User is already logged in')
         else:
+           
+            #Create authentication payload
+            auth_payload = {
+                'AUTHRULE_NAME': 'Authenticator',
+                'clienttype': 'html',
+                'ScreenWidth': '1920',
+                'ScreenHeight': '1080',
+                'loginFromCookieData': 'false',
+                'ntlmv2': 'false',
+                'j_username': self.user,
+                'j_password': self.password,
+                'signInAutomatically': 'on',
+                'uname': ''
+            }
             
             #Load home page for cookie/referrer reasons, grab encrypted key
             home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
@@ -111,7 +126,7 @@ class APISession:
                 '{0:s}://{1:s}{2:s}'.format(
                     self.protocol,
                     self.hostname,
-                    APISession.ENCRYPTED_PWORD_URI.format(self.password))
+                    NFApi.ENCRYPTED_PWORD_URI.format(self.password))
             ).text
            
             #Update cookies and headers
@@ -132,7 +147,7 @@ class APISession:
 
             post_response = self.request.post(
                 post_url,
-                data=APISession.AUTH_PAYLOAD.format(self.user, self.password)
+                data=auth_payload
             )
 
             del self.request.headers['Content-Type']
@@ -161,14 +176,14 @@ class APISession:
     
         '''All IPGroups returned as JSON object'''
     
-        response = self._get(APISession.LISTIPGROUP_URI)
+        response = self._get(NFApi.LISTIPGROUP_URI)
         return json.loads(response.text)
 
     def get_bill_plans(self):
 
         '''All billing plans returned as JSON'''
         
-        response = self._get(APISession.LISTBILLPLAN_URI)
+        response = self._get(NFApi.LISTBILLPLAN_URI)
         return json.loads(response.text)
 
     def add_ip_group(self, **kwargs):
@@ -262,91 +277,88 @@ class APISession:
         response = self.request.post(post_url, data=kwargs)
         return json.loads(response.text)
 
-    def modify_billing(self, **kwargs):
+    def modify_billing(self, payload):
 
         '''Function to modify billing object. Looks like it takes same paramters as
         add_billing, but must also include a unique identifier 'plan id'.
+        
+        :param payload: existing billing object with updated parameters
+        :type payload: dict
+        :returns: json
         '''
+        
+        #Add API key to existing payload
+        payload['apiKey'] = self.api_key
 
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
-
-        #We should only need to check for 'planid', everything else should be provided from get_billing and passed in?
-        if not kwargs.get('planid'):
-            raise Exception('Missing required paramter. Billing plan identifier must be passed into modify_billing function.')
-
-        #Modify URIs do not pass API key in URI like the get URIs do. We apparently have to pass API key in 
-        #as part of url-encoded payload. 
-        kwargs['apiKey'] = self.api_key
-
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYBILLPLAN_URI)
-        response = self.request.post(post_url, data=kwargs)
+        response = self._post(NFApi.MODIFYBILLPLAN_URI, payload)
         return json.loads(response.text)
 
-    def modify_ip_group(self, **kwargs):
+    def modify_ip_group(self, payload):
 
         '''Function to modify IPGroup object. Doesn't appear to have any unique parameters, should be able to
         query for IPGroup object with get_ip_groups, modify what we need to modify, then pass to this function 
         to udpate the existing object.
+
+        :param payload: existing IPGroup object with updated parameters
+        :type payload: dict
+        :returns: json
         '''
         
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
-
-        #Modify URIs do not pass API key in URI like the get URIs do. We apparently have to pass API key in 
-        #as part of url-encoded payload. 
-        kwargs['apiKey'] = self.api_key
+        #Add API key to existing params that were passed in
+        payload['apiKey'] =  self.api_key
         
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.MODIFYIPGROUP_URI)
-        response = self.request.post(post_url, data=kwargs)
+        response = self._post(NFApi.MODIFYIPGROUP_URI, payload)
         return json.loads(response.text)    
 
     def delete_ip_group(self, GroupName):
 
         '''Function to delete an IPGroup object. The only required parameter for this is GroupName.
+
+        :param GroupName: Name of IPGroup object
+        :type GroupName: str
+        :returns: json        
         '''
 
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
-
-        payload = {}
-        payload['apiKey'] = self.api_key
-        payload['GroupName'] = GroupName
-
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEIPGROUP_URI)
-        response = self.request.post(post_url, data=payload)
+        payload = {
+            'apiKey': self.api_key,
+            'GroupName': GroupName
+        }
+        
+        response = self._post(NFApi.DELETEIPGROUP_URI, payload)
         return json.loads(response.text)
 
     def delete_bill_plan(self, PlanID):
 
         '''Function to delete billing plan object. The format for this call is, of course, different than the others. No data is
         passed as urlencoded payload, API key and PlanID are both sent in the URI.
+        
+        :param PlanID: ID number of bill plan
+        :type PlanID: str
+        :returns: json
         '''
         
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
-
-        payload = {}
-        payload['apiKey'] = self.api_key
-        payload['planID'] = PlanID
-
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.DELETEBILLPLAN_URI)
-        response = self.request.post(post_url, data=payload)
+        payload = {
+            'apiKey': self.api_key,
+            'planID': PlanID
+        }
+        
+        response = self._post(NFApi.DELETEBILLPLAN_URI, payload)
         return json.loads(response.text)
 
     def get_group_conversation_data(self, ipgroup):
 
-        '''Get conversation data for a specific IP group. IP group should be ID based, not
+        ''' Get conversation data for a specific IP group. IP group should be ID based, not
         named based. Using default params for now, will expand to include more later.
+        
+        :param ipgroup: ID number of IPGroup
+        :type ipgroup: str
+        :returns: json 
         '''
-
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
 
         payload = {
             'apiKey': self.api_key,
             'DeviceID': ipgroup,
-            'Count': 10,
+            'Count': '10',
             'Data': 'IN',
             'isNetwork': 'OFF',
             'ResolveDNS': 'false',
@@ -357,6 +369,6 @@ class APISession:
             'TimeFrame': 'today',
             'expand': 'true'
         }
-        import pdb; pdb.set_trace()
-        response = self._get(APISession.CONVERSATION_URI, data=payload)
+
+        response = self._get(NFApi.CONVERSATION_URI, payload)
         return json.loads(response.text)
