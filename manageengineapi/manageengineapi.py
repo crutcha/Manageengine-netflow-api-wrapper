@@ -10,7 +10,7 @@ class NFApi:
     against API will return JSON object to caller. 
     '''
 
-
+    #API URIs
     LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'    
     ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
     LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
@@ -20,8 +20,10 @@ class NFApi:
     DELETEIPGROUP_URI = '/api/json/nfaipgroup/deleteIPGroup'
     DELETEBILLPLAN_URI = '/api/json/nfabilling/deleteBillPlan'
     CONVERSATION_URI = '/api/json/nfadevice/getConvData'
+    TRAFFICDATA_URI = '/api/json/nfadevice/getTrafficData'
     LOGIN_URI = '/apiclient/ember/Login.jsp'
-    ENCRYPTED_PWORD_URI = '/servlets/SettingsServlet?requestType=AJAX&EncryptPassword={0:s}&sid=0.28584800255841862'
+
+    #HTTP headers data
     GET_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
         "Accept-Encoding": "gzip, deflate, sdch",
@@ -29,6 +31,22 @@ class NFApi:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         "Connection": "keep-alive",
+    }
+
+    #Default query parameters
+    DEFAULT_IPGROUP_QUERY = {
+        'apiKey': '',
+        'DeviceID': '',
+        'Count': '10',
+        'Data': 'IN',
+        'isNetwork': 'OFF',
+        'ResolveDNS': 'false',
+        'pageCount': '1',
+        'expand': 'false',
+        'IPGroup': 'true',
+        'rows': '9',
+        'TimeFrame': 'today',
+        'expand': 'true'
     }
 
     def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
@@ -184,14 +202,14 @@ class NFApi:
         '''All IPGroups returned as JSON object'''
     
         response = self._get(NFApi.LISTIPGROUP_URI)
-        return json.loads(response.text)
+        return response.json()
 
     def get_bill_plans(self):
 
         '''All billing plans returned as JSON'''
         
         response = self._get(NFApi.LISTBILLPLAN_URI)
-        return json.loads(response.text)
+        return response.json()
 
     def add_ip_group(self, ipgroup_dict):
         '''
@@ -220,7 +238,7 @@ class NFApi:
 
         ipgroup_dict['apiKey'] = self.api_key
         response = self._post(NFApi.ADDIPGROUP_URI, ipgroup_dict)
-        return json.loads(response.text)
+        return response.json()
     
 
     def add_billing(self, billing_dict):
@@ -279,7 +297,7 @@ class NFApi:
         #Checks passed. Formuate data paload and POST to API.
         post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI)
         response = self.request.post(post_url, data=kwargs)
-        return json.loads(response.text)
+        return response.json()
 
     def modify_billing(self, payload):
 
@@ -295,7 +313,7 @@ class NFApi:
         payload['apiKey'] = self.api_key
 
         response = self._post(NFApi.MODIFYBILLPLAN_URI, payload)
-        return json.loads(response.text)
+        return response.json()
 
     def modify_ip_group(self, payload):
 
@@ -312,7 +330,7 @@ class NFApi:
         payload['apiKey'] =  self.api_key
         
         response = self._post(NFApi.MODIFYIPGROUP_URI, payload)
-        return json.loads(response.text)    
+        return response.json()  
 
     def delete_ip_group(self, GroupName):
 
@@ -329,7 +347,7 @@ class NFApi:
         }
         
         response = self._post(NFApi.DELETEIPGROUP_URI, payload)
-        return json.loads(response.text)
+        return response.json()
 
     def delete_bill_plan(self, PlanID):
 
@@ -347,32 +365,64 @@ class NFApi:
         }
         
         response = self._post(NFApi.DELETEBILLPLAN_URI, payload)
-        return json.loads(response.text)
+        return response.json()
 
-    def get_group_conversation_data(self, ipgroup):
+    def get_group_conversation_data(self, ipgroup, payload={}):
 
         ''' Get conversation data for a specific IP group. IP group should be ID based, not
         named based. Using default params for now, will expand to include more later.
-        
+ 
         :param ipgroup: ID number of IPGroup
         :type ipgroup: str
         :returns: json 
         '''
+    
+        if not bool(payload):
 
-        payload = {
-            'apiKey': self.api_key,
-            'DeviceID': ipgroup,
-            'Count': '10',
-            'Data': 'IN',
-            'isNetwork': 'OFF',
-            'ResolveDNS': 'false',
-            'pageCount': '1',
-            'expand': 'false',
-            'IPGroup': 'true',
-            'rows': '9',
-            'TimeFrame': 'today',
-            'expand': 'true'
-        }
+            #Query string is empty, default payload
+            payload = {
+                'apiKey': self.api_key,
+                'DeviceID': ipgroup,
+                'Count': '10',
+                'Data': 'IN',
+                'isNetwork': 'OFF',
+                'ResolveDNS': 'false',
+                'pageCount': '1',
+                'expand': 'false',
+                'IPGroup': 'true',
+                'rows': '9',
+                'TimeFrame': 'today',
+                'expand': 'true'
+            }
+            print('Did not receive query paramters, using default: {0:s}'.format(str(payload)))
 
         response = self._get(NFApi.CONVERSATION_URI, payload)
-        return json.loads(response.text)
+        return response.json()
+
+    def get_group_traffic_data(self, ipgroup, payload={}):
+
+        ''' Get traffic data for specific IP group. 
+
+        :param ipgroup: ID number of IPGroup
+        :type ipgroup: str
+        :returns: json
+        '''
+
+        if not bool(payload):
+
+            #Query string is empty, default payload
+            payload = {
+                'apiKey': self.api_key,
+                'DeviceID': ipgroup,
+                'expand': 'false',
+                'IPGroup': 'true',
+                'TimeFrame': 'today',
+                'expand': 'false',
+                'tablegripviewtype': 'Chart',
+                'Type': 'speed',
+                'granularity': 1,
+            }
+            print('Did not receive query paramters, using default: {0:s}'.format(str(payload)))
+        
+        response = self._get(NFApi.TRAFFICDATA_URI, payload)
+        return response.json()
