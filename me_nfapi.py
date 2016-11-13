@@ -2,7 +2,7 @@ from __future__ import print_function
 import requests
 import json
 import pdb
-
+import random
 
 class NFApi:
 
@@ -57,32 +57,35 @@ class NFApi:
         if not self.logged_in:
             raise Exception('Session is not logged in.')
 
-        url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(
+        url = '{0:s}://{1:s}{2:s}'.format(
             self.protocol,
             self.hostname,
             uri,
-            self.api_key
         )
+
+        #Add API Key to payload
+        payload['apiKey'] = self.api_key
+
         response = self.request.get(url, params = payload)
         return response
 
-    def _post(self, uri, **kwargs):
+    def _post(self, uri, payload={}):
         '''Method used for POST functions of API.'''
 
         #Validate session is logged in
         if not self.logged_in:
             raise Exception('Session is not logged in')
         
-        url = '{0:s}://{1:s}{2:s}?apiKey={3:s}'.format(
+        url = '{0:s}://{1:s}{2:s}'.format(
             self.protocol,
             self.hostname,
             uri
         )
 
         #Add API key to kwargs dict
-        kwargs['apiKey'] = self.api_key
+        payload['apiKey'] = self.api_key
 
-        response = self.request.post(url, data=kwargs)
+        response = self.request.post(url, data=payload)
         return response
 
     def _check_required_args(self, arglist, **kwargs):
@@ -119,14 +122,19 @@ class NFApi:
                 'uname': ''
             }
             
+            #Ecryption key payload
+            encryption_payload = {
+                'requestType': 'AJAX',
+                'EncryptPassword': self.password,
+                'sid': random.random()
+            }
+            
             #Load home page for cookie/referrer reasons, grab encrypted key
             home_page = self.request.get('{0:s}://{1:s}'.format(self.protocol, self.hostname))
             j_session_id = home_page.cookies['JSESSIONID']
             encrypt_key = self.request.post(
-                '{0:s}://{1:s}{2:s}'.format(
-                    self.protocol,
-                    self.hostname,
-                    NFApi.ENCRYPTED_PWORD_URI.format(self.password))
+                '{0:s}://{1:s}/servlets/Settings/Serverlet'.format(self.protocol, self.hostname),
+                data = encryption_payload
             ).text
            
             #Update cookies and headers
@@ -186,66 +194,63 @@ class NFApi:
         response = self._get(NFApi.LISTBILLPLAN_URI)
         return json.loads(response.text)
 
-    def add_ip_group(self, **kwargs):
-        
-        '''Function to add IPGroup. Takes the following case-sentive keyword arguments with example call:
+    def add_ip_group(self, ipgroup_dict):
+        '''
+        Function to add IPGroup. IPGroup should be passed in as dictionary. Rather than check
+        for required arguments within this function, we will simply pass JSON back to caller
+        which will inform caller that required parameters are missing.
+        https://www.manageengine.com/products/netflow/help/admin-operations/ip-group-mgmt.html 
 
         GroupName: String of group name (IE: 'test-group')
         Desc: Description for IP Group (IE: 'Test group for python docstring')
         speed: Speed in bits per second (IE: '50000')
         DevList: List of interfaces/devices tied to IP Group. Value of -1 means all. 
-        status: Type of IP data being added to group, IE: include/exclude/between sites (IE: 'include,include,include')
-        IPData: List of IP Data seperated by comma. Can be combination of addresses, ranges, or sites. (IE: '8.8.8.8-8.8.4.4-1.1.1.0,255.255.255.0')
-        IPType: List of IP types seperate by comman, Can be combination of ipaddress, iprange, ipnetwork. (IE: 'ipaddress,ipaddress,ipnetwork')
-        ToIPType: Looks like this is only used for status type of 'between' and is the  definition of the remote endpoint in between definition. Should
-                  take same values as IPType. 
-        
-        **kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload. 
+        status: Type of IP data being added to group, IE: include/exclude/between sites 
+            (IE: 'include,include,include')
+        IPData: List of IP Data seperated by comma. Can be combination of addresses, ranges, or sites. 
+            (IE: '8.8.8.8-8.8.4.4-1.1.1.0,255.255.255.0')
+        IPType: List of IP types seperate by comman, Can be combination of ipaddress, iprange, ipnetwork. 
+            (IE: 'ipaddress,ipaddress,ipnetwork')
+        ToIPType: Looks like this is only used for status type of 'between' and is the  definition of the 
+            remote endpoint in between definition. Should take same values as IPType. 
+
+        :param ipgroup_dct: New IPGroup object paramters
+        :type ipgroup_dict: dict
+        :returns: json
         '''
 
-        #Make sure session is logged in or else POST will fail.
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
-
-        #Make sure we have received legitimate keyword arguments. These will be NoneType if not passed properly. Maybe we can change this to comprehension later....
-        required_args = ['GroupName', 'Desc', 'speed', 'DevList', 'status', 'IPData', 'IPType']
-
-        for arg in required_args:
-            if not kwargs.get(arg):
-                raise Exception('Missing required keywoard argument for add_ip_group: {0:s}'.format(arg))
-
-        #Checks passed. Formulate data payload and POST to API. 
-        kwargs['apiKey'] = self.api_key
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDIPGROUP_URI)
-        response = self.request.post(post_url, data=kwargs)
+        ipgroup_dict['apiKey'] = self.api_key
+        response = self._post(NFApi.ADDIPGROUP_URI, ipgroup_dict)
         return json.loads(response.text)
     
 
-    def add_billing(self, **kwargs):
+    def add_billing(self, billing_dict):
 
 
-        '''Function to add billing group. Takes the following case-sensitve keyword arguments with example call:
+        '''Function to add billing group. 
+        https://www.manageengine.com/products/netflow/help/admin-operations/billing.html
 
         name:  (IE: 'somecompany-billing')
         desc:  (IE: 'somecompany BS')
         costUnit: (IE: 'USD')
         periodType: (IE:'monthly')
-        genDate: (IE: '1')
+        genDate: generate date for billing (IE: '1' is first day of month)
         timezone: (IE: 'US/eastern')
-        apiKey: WTF? REALLY?
-        baseSpeed: (IE: '50000')
-        baseCost: (IE: '500')
-        addSpeed: (IE: '1')
-        addCost: (IE: '600')
-        type: maybe this is volume? (IE: 'speed')
+        baseSpeed: speed in bits per second (IE: '50000')
+        baseCost: Based cost of alloted bandwith in USD (IE: '500')
+        addSpeed: Additional speed in bits per second (IE: '1')
+        addCost: Additional cost for every unit of addSpeed overage in USD (IE: '600')
+        type: billing type, either speed or volumetric (IE: 'speed' or 'volume')
         perc: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
-        intfID: 
-        ipgID: (IE: '2500033,2500027,2500034,2500025')
-        bussID:
-        emailID: (IE: 'someonewhocares@somecompany.com')
-        emailsub: (IE: 'billing report for some crap')
+        intfID: interface ID bill plan will apply to, if applicable
+        ipgID: IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
+        bussID: ???
+        emailID: Email address for bill (IE: 'someonewhocares@somecompany.com')
+        emailsub: Subject of email (IE: 'billing report for blah blah')
 
-        **kwargs was used so we already have a dictionary to pass for x-www-urlencoded data payload.
+        :param billing_dict: New billing object parameters
+        :type billing_dict: dict
+        :returns: json
         '''
         
         if not self.logged_in:
