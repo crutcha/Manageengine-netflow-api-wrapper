@@ -3,8 +3,13 @@ Wrapper for undocumented manageengine netflow API. Only works for v12.
 
 WORK IN PROGRESS, NOT FINISHED
 
-To-Do:
+Installation
+------------
 
-* Figure out API authentication(NFA__SSO)
-* Validation for objects passed into add/POST methods. API will still report success despite invalid objects being passed to it. (ie: ipgID does not exist/invalid)
-* Convert all modify calls to urlencoding. Possibly combine modify functionality? 
+This library can be installed using PIP:
+
+    pip install manageengineapi
+
+Alternatively you can install it from cloned respository:
+
+    python setup.py install
