@@ -7,7 +7,7 @@ TODO:
 -----
 
 - [ ] Implement modify functions to translate between JSON returned from get methods to data structure
-      required for modify methods.
+      required for modify methods. (maybe feature as a class)
 - [ ] Update all docstrings
 - [X] Convert all methods to use url encoding instead of string replacement
 
