@@ -51,6 +51,8 @@ Add IP Group to track Google DNS traffic:
         'IPData': '8.8.8.8-8.8.4.4',
         'IPType': 'ipaddress,ipaddress',
     }
+    
+    result = session.add_ip_group(ip_group_params)
 
 JSON returned to us shows group was successfully created.
 
