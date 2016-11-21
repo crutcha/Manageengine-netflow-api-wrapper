@@ -1,4 +1,5 @@
 from __future__ import print_function
+from .ipgroup import IPGroup, IPRange, IPNetwork
 import requests
 import json
 import random
@@ -47,7 +48,7 @@ class NFApi:
         'rows': '9',
         'TimeFrame': 'today',
         'expand': 'true'
-    }
+
 
     def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
         
@@ -198,11 +199,72 @@ class NFApi:
 
 
     def get_ip_groups(self):
+
+        '''
+        All IPGroups returned as list of IPGroup objects.
+
+        :rtype: list
+        '''
     
-        '''All IPGroups returned as JSON object'''
-    
-        response = self._get(NFApi.LISTIPGROUP_URI)
-        return response.json()
+        response = self._get(NFApi.LISTIPGROUP_URI).json()
+        ip_groups = []
+
+        #Parse JSON output to IPGroup objects
+        for ipg in response['IPGroup_List']:
+            ip_obj = IPGroup(
+                app = ipg['app'],
+                dscp = ipg['dscp'],
+                name = ipg['base']['Name'],
+                description = ipg['base']['desc'],
+                speed = ipg['base']['speed'],
+                status = ipg['base']['status'],
+                ID = ipg['base']['ID'],
+                asso_device = ipg['Asso_Device'],
+                asso_device_id = ipg['Asso_Dev_id']
+            )
+
+            #TODO: if existing ipgroup contains between relationship, the list 
+            #indexing can be different depending on A/B endpoints. Need to come
+            #with solid logic to handle this when parsing output of all ip
+            #groups.
+            #EX: ['IPAddress', 'Between', 'IPNetwork', '5.6.7.8', '50.50.20.0', '255.255.248.0']
+ 
+            for ipdata in ipg['ip']:
+
+                #IPRange output isn't returned in a friendly delimited format.
+                #Need to normalize data with splits.
+                #[
+                #  "IPRange",
+                #  "Include",
+                #  "1.1.1.1 to 1.1.1.8",
+                #  "255.255.255.0"
+                #]
+                if ipdata[0].lower() == 'iprange':
+                    ip_obj.ip.append(IPRange(
+                        rangestart = ipdata[2].split()[0],
+                        rangeend = ipdata[2].split()[2],
+                        netmask = ipdata[3],
+                        status = ipdata[1]
+                    ))
+
+                elif ipdata[0].lower() == 'ipaddress':
+                    try:
+                        ip_obj.ip.append(IPNetwork(cidr=ipdata[2], status=ipdata[1]))
+                    except:
+                        import pdb; pdb.set_trace()
+                #IPNetwork output isn't friendly either, we prefer data in CIDR
+                #format and it gives us network and mask. Need to convert to
+                #normalize data between all methods.
+                elif ipdata[0].lower() == 'ipnetwork':
+                    ip_obj.ip.append(IPNetwork(
+                        cidr = '/'.join([ipdata[2], ipdata[3]]),
+                        status = ipdata[1]
+                    ))
+
+            #Finally, add ipgroup object into returned list
+            ip_groups.append(ip_obj)
+            
+        return ip_groups
 
     def get_bill_plans(self):
 
@@ -211,33 +273,29 @@ class NFApi:
         response = self._get(NFApi.LISTBILLPLAN_URI)
         return response.json()
 
-    def add_ip_group(self, ipgroup_dict):
+    def add_ip_group(self, ipgroup):
         '''
-        Function to add IPGroup. IPGroup should be passed in as dictionary. Rather than check
-        for required arguments within this function, we will simply pass JSON back to caller
-        which will inform caller that required parameters are missing.
+        Function to add IPGroup. Function should be passed an IPGroup object type.
         https://www.manageengine.com/products/netflow/help/admin-operations/ip-group-mgmt.html 
-
-        GroupName: String of group name (IE: 'test-group')
-        Desc: Description for IP Group (IE: 'Test group for python docstring')
-        speed: Speed in bits per second (IE: '50000')
-        DevList: List of interfaces/devices tied to IP Group. Value of -1 means all. 
-        status: Type of IP data being added to group, IE: include/exclude/between sites 
-            (IE: 'include,include,include')
-        IPData: List of IP Data seperated by comma. Can be combination of addresses, ranges, or sites. 
-            (IE: '8.8.8.8-8.8.4.4-1.1.1.0,255.255.255.0')
-        IPType: List of IP types seperate by comman, Can be combination of ipaddress, iprange, ipnetwork. 
-            (IE: 'ipaddress,ipaddress,ipnetwork')
-        ToIPType: Looks like this is only used for status type of 'between' and is the  definition of the 
-            remote endpoint in between definition. Should take same values as IPType. 
-
-        :param ipgroup_dct: New IPGroup object paramters
-        :type ipgroup_dict: dict
-        :returns: json
         '''
 
-        ipgroup_dict['apiKey'] = self.api_key
-        response = self._post(NFApi.ADDIPGROUP_URI, ipgroup_dict)
+        if not isinstance(ipgroup, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
+
+        #Create payload for URL encoding
+        ipg_payload = {
+            'GroupName': ipgroup.name,
+            'Desc': ipgroup.description,
+            'speed': ipgroup.speed,
+            'DevList': ipgroup.asso_dev_id,
+            'status': ','.join([s.status for s in ipgroup.ip]),
+            'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
+            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'ToIPType': ipgroup.to_ip_type,
+            'apiKey': self.api_key 
+        }
+        
+        response = self._post(NFApi.ADDIPGROUP_URI, ipg_payload)
         return response.json()
     
 
