@@ -7,7 +7,7 @@ here instead of JSON.
 from ipaddress import ip_network, IPv4Address, AddressValueError
 import re
 
-class IPGroup:
+class IPGroup(object):
     '''
     IP Group object. Group can either be defined by include/exclude of IPNetwork and IPRange 
     objects or defined as between IPNetwork objects. It can not contain both.
@@ -34,44 +34,125 @@ class IPGroup:
         self.speed = kwargs.get('speed')
         self.ID = kwargs.get('ID')
         self.to_ip_type = None
+        self.status = kwargs.get('status', 'Enabled')
 
         #List of devices coupled with ifIndex
         self.asso_device = kwargs.get('asso_device', 'All Interfaces')
         
         #List of all device identifiers
-        self.asso_dev_id = kwargs.get('asso_dev_id')
+        self.asso_dev_id = kwargs.get('asso_dev_id', -1)
 
         #List containing all IPNetwork or IPRange objects applied to IPgroup
         self.ip = kwargs.get('ip', [])
 
-        #List of all object statuses
-        self.status = []
+        #Track state of between relationships
+        self.is_between = kwargs.get('is_between', False)
 
-    def add_ip(self, obj):
-
-        #Check for type of IPBetween.
-        if obj.status == 'between':
- 
-            #If status is 'between' and no between definition exists yet, add it. If one exists
-            #already, throw an error to caller.
-            if self.status.get('between'):
-                raise ValueError('IPGroup already contains between clause')
-            else:
-                self.status = 'between'
-                self.to_ip_type = obj.type.lower()
-        
-        #Otherwise append other types to ip list
-        else:
-            self.ip.append(obj)
-       
     def __repr__(self):
         return '<IPGroup - Name:{0} ID:{1}>'.format(
             self.name,
             self.ID
         )
+
+    def add_ip(self, obj):
+
+        #Check for type of IPBetween.
+        if obj.status == 'between':
+            
+            #If status is 'between' and no between definition exists yet and has valid definition of
+            #2 objects, add it. If one exists already, throw an error to caller.
+            if self.is_between and len(self.ip) == 2:
+                raise ValueError('IPGroup already contains between clause')
+            else:
+                self.is_between = True
+                self.to_ip_type = obj.type.lower()
+                self.ip.append(obj)
+        
+        #Otherwise append other types to ip list
+        else:
+            self.ip.append(obj)
+    
+    def process_api_group_list(self, ipgs):
+        '''
+        Function to parse list of IP definitions from API JSON output
+        and return list of IPNetwork/IPRange objects and whether it's
+        a between relationships or not. 
+
+        returns ([], bool) 
+        '''
+        
+        for ipdata in ipgs:
+
+            #Between relationships need to be parsed differently. If a between
+            #relationship exists, parse and immediately return since only a single
+            #between relationship can exist. These are formatted as:
+            #[type, 'Between', type, ipinfo, ipinfo, ipinfo]
+            if 'between' in [t.lower() for t in ipdata]:
+                
+                #Process all possible A endpoint types in if/else block
+                if ipdata[0].lower() == 'ipaddress':
+                    self.add_ip(IPNetwork(cidr=ipdata[3], status='between')) 
+                elif ipdata[0].lower() == 'ipnetwork':
+                    self.add_ip(IPNetwork(
+                            cidr = '/'.join([ipdata[3], ipdata[4]]),
+                            status = 'between'
+                    ))
+                elif ipdata[0].lower() == 'iprange':
+                    self.add_ip(IPRange(
+                        rangestart = ipdata[3].split()[0],
+                        rangeend = ipdata[3].split()[2],
+                        netmask = ipdata[4],
+                        status = 'between'
+                    ))
+
+                #Process all possible B endpoint types in if/else block. These should
+                #be sliced in reverse since it is unknown the length of the list being
+                #passed to us
+                if ipdata[2].lower() == 'ipaddress':
+                    self.add_ip(IPNetwork(cidr=ipdata[-1], status='between')) 
+                elif ipdata[2].lower() == 'ipnetwork':
+                    self.add_ip(IPNetwork(
+                            cidr = '/'.join([ipdata[-2], ipdata[-1]]),
+                            status = 'include'
+                    ))
+                elif ipdata[2].lower() == 'iprange':
+                    self.add_ip(IPRange(
+                        rangestart = ipdata[-2].split()[0],
+                        rangeend = ipdata[-2].split()[2],
+                        netmask = ipdata[-1]
+                    ))
+
+            else:
+                #IPRange output isn't returned in a friendly delimited format.
+                #Need to normalize data with splits.
+                #[
+                #  "IPRange",
+                #  "Include",
+                #  "1.1.1.1 to 1.1.1.8",
+                #  "255.255.255.0"
+                #]
+                if ipdata[0].lower() == 'iprange':
+                    self.add_ip(IPRange(
+                        rangestart = ipdata[2].split()[0],
+                        rangeend = ipdata[2].split()[2],
+                        netmask = ipdata[3],
+                        status = ipdata[1]
+                    ))
+
+                elif ipdata[0].lower() == 'ipaddress':
+                    self.add_ip(IPNetwork(cidr=ipdata[2], status=ipdata[1]))
+                
+                #IPNetwork output isn't friendly either, we prefer data in CIDR
+                #format and it gives us network and mask. Need to convert to
+                #normalize data between all methods.
+                elif ipdata[0].lower() == 'ipnetwork':
+                    self.add_ip(IPNetwork(
+                        cidr = '/'.join([ipdata[2], ipdata[3]]),
+                        status = ipdata[1]
+                    ))
  
 
-class IPNetwork:
+class IPNetwork(object):
     '''
     Object for both network and host objects. Hosts should be passed in with /32
     subnet mask, or else they will be created as network object with appropriate
@@ -81,7 +162,7 @@ class IPNetwork:
     :param status: enabled/disabled
     '''
 
-    def __init__(self, cidr=None, status=None):
+    def __init__(self, cidr=None, status='include'):
         
         #Validate CIDR value passed is valid
         try:
@@ -108,7 +189,7 @@ class IPNetwork:
             self.netmask
         )        
  
-class IPRange:
+class IPRange(object):
     '''
     Object for IP range. Constructor must be passed 2 valid IP addresses that are
     hyphen seperated. Addresses will be stored as IPv4Address objects.
@@ -157,7 +238,7 @@ class IPBetween:
         #Type checks
         if not isinstance(aendpoint, (IPNetwork, IPRange)):
             raise TypeError('A Endpoint was not a avalid IPNetwork or IPRange object')
-        if not isinstance(bendpoint, (IPNetwork, IPRange))
+        if not isinstance(bendpoint, (IPNetwork, IPRange)):
             raise TypeError('A Endpoint was not a avalid IPNetwork or IPRange object')
 
         self.aendpoint = aendpoint

@@ -23,6 +23,7 @@ class NFApi:
     CONVERSATION_URI = '/api/json/nfadevice/getConvData'
     TRAFFICDATA_URI = '/api/json/nfadevice/getTrafficData'
     LOGIN_URI = '/apiclient/ember/Login.jsp'
+    LOGOUT_URI = '/apiclient/ember/Logout.jsp'
 
     #HTTP headers data
     GET_HEADERS = {
@@ -33,22 +34,6 @@ class NFApi:
         "Accept-Language": "en-US,en;q=0.5",
         "Connection": "keep-alive",
     }
-
-    #Default query parameters
-    DEFAULT_IPGROUP_QUERY = {
-        'apiKey': '',
-        'DeviceID': '',
-        'Count': '10',
-        'Data': 'IN',
-        'isNetwork': 'OFF',
-        'ResolveDNS': 'false',
-        'pageCount': '1',
-        'expand': 'false',
-        'IPGroup': 'true',
-        'rows': '9',
-        'TimeFrame': 'today',
-        'expand': 'true'
-
 
     def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
         
@@ -117,7 +102,7 @@ class NFApi:
 
     def login(self):
 
-        '''Create requests session object, modify it's cookie/header
+        '''Create requests session object, modify its cookie/header
         content, log in to API and retrieve NFA_SSO token
         to be used for all functions
         '''
@@ -192,6 +177,11 @@ class NFApi:
                     print('Unknown error trying to grab cookie data from POST response data.')
                     print(e.args)
 
+    def logout(self):
+
+        response = self._get(NFApi.LOGOUT_URI)
+        if response.status_code == 200:
+            self.logged_in = False
 
     #=================================================================
     # Feature specific methods
@@ -222,45 +212,10 @@ class NFApi:
                 asso_device = ipg['Asso_Device'],
                 asso_device_id = ipg['Asso_Dev_id']
             )
-
-            #TODO: if existing ipgroup contains between relationship, the list 
-            #indexing can be different depending on A/B endpoints. Need to come
-            #with solid logic to handle this when parsing output of all ip
-            #groups.
-            #EX: ['IPAddress', 'Between', 'IPNetwork', '5.6.7.8', '50.50.20.0', '255.255.248.0']
- 
-            for ipdata in ipg['ip']:
-
-                #IPRange output isn't returned in a friendly delimited format.
-                #Need to normalize data with splits.
-                #[
-                #  "IPRange",
-                #  "Include",
-                #  "1.1.1.1 to 1.1.1.8",
-                #  "255.255.255.0"
-                #]
-                if ipdata[0].lower() == 'iprange':
-                    ip_obj.ip.append(IPRange(
-                        rangestart = ipdata[2].split()[0],
-                        rangeend = ipdata[2].split()[2],
-                        netmask = ipdata[3],
-                        status = ipdata[1]
-                    ))
-
-                elif ipdata[0].lower() == 'ipaddress':
-                    try:
-                        ip_obj.ip.append(IPNetwork(cidr=ipdata[2], status=ipdata[1]))
-                    except:
-                        import pdb; pdb.set_trace()
-                #IPNetwork output isn't friendly either, we prefer data in CIDR
-                #format and it gives us network and mask. Need to convert to
-                #normalize data between all methods.
-                elif ipdata[0].lower() == 'ipnetwork':
-                    ip_obj.ip.append(IPNetwork(
-                        cidr = '/'.join([ipdata[2], ipdata[3]]),
-                        status = ipdata[1]
-                    ))
-
+            
+            #Call method to translate JSON to IP objects
+            ip_obj.process_api_group_list(ipg['ip'])
+            
             #Finally, add ipgroup object into returned list
             ip_groups.append(ip_obj)
             
@@ -373,7 +328,7 @@ class NFApi:
         response = self._post(NFApi.MODIFYBILLPLAN_URI, payload)
         return response.json()
 
-    def modify_ip_group(self, payload):
+    def modify_ip_group(self, ipgroup):
 
         '''Function to modify IPGroup object. Doesn't appear to have any unique parameters, should be able to
         query for IPGroup object with get_ip_groups, modify what we need to modify, then pass to this function 
@@ -384,13 +339,26 @@ class NFApi:
         :returns: json
         '''
         
-        #Add API key to existing params that were passed in
-        payload['apiKey'] =  self.api_key
+        if not isinstance(ipgroup, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
         
-        response = self._post(NFApi.MODIFYIPGROUP_URI, payload)
+        #Create payload for URL encoding
+        ipg_payload = {
+            'GroupName': ipgroup.name,
+            'Desc': ipgroup.description,
+            'speed': ipgroup.speed,
+            'DevList': ipgroup.asso_dev_id,
+            'status': ','.join([s.status for s in ipgroup.ip]),
+            'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
+            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'ToIPType': ipgroup.to_ip_type,
+            'apiKey': self.api_key 
+        }
+        
+        response = self._post(NFApi.MODIFYIPGROUP_URI, ipg_payload)
         return response.json()  
 
-    def delete_ip_group(self, GroupName):
+    def delete_ip_group(self, ipg_obj):
 
         '''Function to delete an IPGroup object. The only required parameter for this is GroupName.
 
@@ -399,13 +367,18 @@ class NFApi:
         :returns: json        
         '''
 
+        if not isinstance(ipg_obj, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
+            
         payload = {
             'apiKey': self.api_key,
-            'GroupName': GroupName
+            'GroupName': ipg_obj.name
         }
         
         response = self._post(NFApi.DELETEIPGROUP_URI, payload)
-        return response.json()
+        
+        #This returns a string, not JSON
+        return response.text
 
     def delete_bill_plan(self, PlanID):
 
