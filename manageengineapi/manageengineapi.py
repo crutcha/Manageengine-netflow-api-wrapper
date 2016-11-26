@@ -1,5 +1,7 @@
 from __future__ import print_function
 from .ipgroup import IPGroup, IPRange, IPNetwork
+from .billing import BillPlan
+from .device import Device
 import requests
 import json
 import random
@@ -15,6 +17,7 @@ class NFApi:
     LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'    
     ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
     LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
+    LISTDEVLIST_URI = '/api/json/nfadevice/listDevForMultiSel'
     ADDBILLPLAN_URI = '/api/json/nfabilling/addBillPlan'
     MODIFYBILLPLAN_URI = '/api/json/nfabilling/modifyBillPlan'
     MODIFYIPGROUP_URI = '/api/json/nfaipgroup/modifyIPGroup'
@@ -223,10 +226,49 @@ class NFApi:
 
     def get_bill_plans(self):
 
-        '''All billing plans returned as JSON'''
+        '''All billing plans returned as list of BillPlan objects'''
+        response = self._get(NFApi.LISTBILLPLAN_URI).json()
+        bill_plans = []
+
+        #TODO: implement interface objects for bill plans???
         
-        response = self._get(NFApi.LISTBILLPLAN_URI)
-        return response.json()
+        #Parse JSON output to BillPlan objects
+        for bp in response['bpList']:
+            bp_obj = BillPlan(
+                name = bp['name'],
+                description = bp['desc'],
+                cost_unit = bp['coustunit'], #YEA, THEY REALLY HAVE THIS TYPO
+                period_type = bp['period'],
+                gen_date = bp['billDate'],
+                time_zone = bp['tzone'],
+                base_speed = bp['basespd'],
+                base_cost = bp['basecost'],
+                add_speed = bp['addspd1'],
+                add_cost = bp['addcost1'],
+                type = bp['type'],
+                percent = bp['perc'],
+                buss_id = bp['bussList'],
+                email_id = bp['emailid'],
+                email_sub = bp['emailSubject'],
+                plan_id = bp['planid']
+            )
+            bill_plans.append(bp_obj)
+
+        return bill_plans
+
+    def get_dev_list(self):
+        '''
+        List all devices/IP Groups and their unique IDs. Needed for adding
+        bill plans and IP groups. Returns a list of Device objects. 
+        '''
+
+        resp = self._get(NFApi.LISTDEVLIST_URI).json()
+        devices = []
+        for dev in resp:
+            new_dev = Device(name=dev['rName'], IP = dev['rIP'], interfaces = dev['interface'])
+            devices.append(new_dev)
+
+        return devices
 
     def add_ip_group(self, ipgroup):
         '''
@@ -254,62 +296,34 @@ class NFApi:
         return response.json()
     
 
-    def add_billing(self, billing_dict):
+    def add_bill_plan(self, billplan):
 
-
-        '''Function to add billing group. 
-        https://www.manageengine.com/products/netflow/help/admin-operations/billing.html
-
-        name:  (IE: 'somecompany-billing')
-        desc:  (IE: 'somecompany BS')
-        costUnit: (IE: 'USD')
-        periodType: (IE:'monthly')
-        genDate: generate date for billing (IE: '1' is first day of month)
-        timezone: (IE: 'US/eastern')
-        baseSpeed: speed in bits per second (IE: '50000')
-        baseCost: Based cost of alloted bandwith in USD (IE: '500')
-        addSpeed: Additional speed in bits per second (IE: '1')
-        addCost: Additional cost for every unit of addSpeed overage in USD (IE: '600')
-        type: billing type, either speed or volumetric (IE: 'speed' or 'volume')
-        perc: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
-        intfID: interface ID bill plan will apply to, if applicable
-        ipgID: IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
-        bussID: ???
-        emailID: Email address for bill (IE: 'someonewhocares@somecompany.com')
-        emailsub: Subject of email (IE: 'billing report for blah blah')
-
-        :param billing_dict: New billing object parameters
-        :type billing_dict: dict
-        :returns: json
-        '''
+        if not isinstance(billplan, BillPlan):
+            raise TypeError('add_billing method did not received BillPlan object')
         
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
+        #Construct bill plan payload
+        bp_payload = {
+            'name': billplan.name,
+            'desc': billplan.description,
+            'costUnit': billplan.cost_unit,
+            'periodType': billplan.period_type,
+            'genDate': billplan.gen_date,
+            'timezone': billplan.time_zone,
+            'apiKey': self.api_key,
+            'baseSpeed': billplan.base_speed,
+            'baseCost': billplan.base_cost,
+            'addSpeed': billplan.add_speed,
+            'addCost': billplan.add_cost,
+            'type': billplan.type,
+            'perc': billplan.percent,
+            'intfID': billplan.intf_id,
+            'ipgID': billplan.ipg_id,
+            'bussID': billplan.buss_id,
+            'emailID': billplan.email_id,
+            'emailsub': billplan.email_sub
+        }
 
-        #Apparently this URI doesn't include API key nor does it work that way, so we have to shim 
-        #the API key into our kwargs dictionary being passed as payload
-        kwargs['apiKey'] = self.api_key
-
-        #Default timezone to eastern if not already defined
-        if not kwargs.get('timezone'):
-            kwargs['timezone'] = 'US/Eastern'
-
-        #Default addSpeed/addCost if not defined since it's not required
-        if not kwargs.get('addSpeed'):
-            kwargs['addSpeed'] = '0'
-        if not kwargs.get('addCost'):
-            kwargs['addCost'] = '0'
-
-        #Adding IP group ID as required for now since there's no reason we should have a billing group not tied to an IP group
-        required_args = ['name', 'desc', 'costUnit', 'periodType', 'genDate', 'timezone', 'baseSpeed', 'baseCost', 'type', 'perc', 'emailID', 'emailsub', 'ipgID'] 
-
-        for arg in required_args:
-            if not kwargs.get(arg):
-                raise Exception('Missing required keyword argument for add_billing: {0:s}'.format(arg))
-
-        #Checks passed. Formuate data paload and POST to API.
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI)
-        response = self.request.post(post_url, data=kwargs)
+        response = self._post(NFApi.ADDBILLPLAN_URI, bp_payload)
         return response.json()
 
     def modify_billing(self, payload):

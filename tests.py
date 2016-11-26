@@ -1,13 +1,19 @@
 from test_settings import nfserver, api_key, username, password
-from manageengineapi import NFApi, IPGroup, IPNetwork, IPRange
+from manageengineapi import NFApi, IPGroup, IPNetwork, IPRange, BillPlan
+from itertools import chain
 import unittest
 
-class TestIPGroups(unittest.TestCase):
+class TestNFApi(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
+        print('Setting up testing session...')
         self.session = NFApi(nfserver, api_key, username, password)
         self.session.login()
+        
+        #List of all unique identifiers known
+        all_devs = self.session.get_dev_list()
+        all_id = list(chain.from_iterable([x.all_idents for x in all_devs]))
         
         #Create single IP object
         IP = IPNetwork('8.8.8.8')
@@ -30,6 +36,7 @@ class TestIPGroups(unittest.TestCase):
 
     @classmethod
     def tearDownClass(self):
+        print('Tearing down testing session....')
         self.session.logout()
 
     def test01_add_single_ip(self):
@@ -49,12 +56,48 @@ class TestIPGroups(unittest.TestCase):
         resp = self.session.modify_ip_group(self.ipg)
         print('test_modify_ip_group: {0}'.format(resp))
         self.assertIn('modified successfully', resp['message'])
+
+        #Modify speed
+        self.ipg.speed = 8000000
+
+        #API call with modified objects
+        resp = self.session.modify_ip_group(self.ipg)
+        print('test_modify_ip_group: {0}'.format(resp))
+        self.assertIn('modified successfully', resp['message'])
     
     def test03_delete_ip_group(self):
         resp = self.session.delete_ip_group(self.ipg)
         print('test_delete_ip_group: {0}'.format(resp))
         self.assertIn('Deleted Successfully', resp)
 
+    def test04_add_bill_plan(self):
+       
+        #New bill plan object
+        bp = BillPlan(
+            name = 'Unit Test Bill Plan',
+            description = 'Unit Test Bill Description',
+            cost_unit = 'USD',
+            period_type = 'Monthly',
+            gen_date = 1,
+            time_zone = 'US/Eastern',
+            base_speed = 500000,
+            base_cost = 50,
+            add_speed = 50,
+            add_cost = 100,
+            type = 'speed',
+            percent = 40,
+            email_id = 'admin@networkinit.io',
+            email_sub = 'Unit Test Email'
+        )
+
+        #Test add_bill_plan call
+        resp = self.session.add_bill_plan(bp)
+        print('test_add_plan: {0}'.format(resp))
+
+    def test05_get_bill_plan(self):
+    
+        pass
+
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestIPGroups)
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestNFApi)
     unittest.TextTestRunner(verbosity=2).run(suite)
