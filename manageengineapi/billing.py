@@ -53,7 +53,7 @@ class BillPlan(object):
         self.ipg_id = kwargs.get('ipg_id', '')
 
         #Plan ID, NOT provided at creation!
-        self.plan_id = kwargs.get('planid', '')
+        self.plan_id = kwargs.get('plan_id', '')
 
     def __repr__(self):
         return '<BillPlan - Name:{0} Type:{1}'.format(

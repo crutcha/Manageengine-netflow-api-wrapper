@@ -230,8 +230,6 @@ class NFApi:
         response = self._get(NFApi.LISTBILLPLAN_URI).json()
         bill_plans = []
 
-        #TODO: implement interface objects for bill plans???
-        
         #Parse JSON output to BillPlan objects
         for bp in response['bpList']:
             bp_obj = BillPlan(
@@ -394,19 +392,15 @@ class NFApi:
         #This returns a string, not JSON
         return response.text
 
-    def delete_bill_plan(self, PlanID):
+    def delete_bill_plan(self, bp):
 
-        '''Function to delete billing plan object. The format for this call is, of course, different than the others. No data is
-        passed as urlencoded payload, API key and PlanID are both sent in the URI.
-        
-        :param PlanID: ID number of bill plan
-        :type PlanID: str
-        :returns: json
+        '''
+        Function to delete billing plan object. Must be passed a BillPlan object.
         '''
         
         payload = {
             'apiKey': self.api_key,
-            'planID': PlanID
+            'planID': bp.plan_id
         }
         
         response = self._post(NFApi.DELETEBILLPLAN_URI, payload)

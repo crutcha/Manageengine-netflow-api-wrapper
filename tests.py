@@ -94,9 +94,22 @@ class TestNFApi(unittest.TestCase):
         resp = self.session.add_bill_plan(bp)
         print('test_add_plan: {0}'.format(resp))
 
-    def test05_get_bill_plan(self):
+    def test05_modify_bill_plan(self):
     
         pass
+
+    def test06_delete_bill_plan(self):
+
+        #Grab unit test bill plan
+        all_bps = self.session.get_bill_plans()
+        for bp in all_bps:
+            if bp.name == 'Unit Test Bill Plan':
+                test_bp = bp
+        
+        #Delete unit test plan
+        resp = self.session.delete_bill_plan(test_bp)
+        print('test_delete_bill_plan: {0}'.format(resp))
+        self.assertEquals('Success', resp['message'])
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestNFApi)
