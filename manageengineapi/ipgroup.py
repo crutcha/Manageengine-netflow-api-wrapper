@@ -224,23 +224,3 @@ class IPRange(object):
             self.end
         )
 
-class IPBetween:
-    '''
-    Object to represent between relationship in IP group. Between relationships can happen 
-    with any IP type. IE: ipaddress to ipnetwork, ipnetwork to iprange. 
-
-    :param aendpoint: IPRange/IPNetwork object of A endpoint
-    :param bendpoint: IPRange/IPNetwork object of B endpoint 
-    '''
-
-    def __init__(self, aendpoint, bendpoint):
-
-        #Type checks
-        if not isinstance(aendpoint, (IPNetwork, IPRange)):
-            raise TypeError('A Endpoint was not a avalid IPNetwork or IPRange object')
-        if not isinstance(bendpoint, (IPNetwork, IPRange)):
-            raise TypeError('A Endpoint was not a avalid IPNetwork or IPRange object')
-
-        self.aendpoint = aendpoint
-        self.bendpoint = bendpoint
-
