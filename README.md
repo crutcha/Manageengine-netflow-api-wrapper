@@ -26,6 +26,7 @@ Alternatively you can install it from cloned respository:
 Documentation/Getting Started
 -----
 
-For examples on how to get started, check out Read the Docs page: 
+For examples on how to get started, check out Read the Docs page:
+
 http://manageengine-netflow-api-wrapper.readthedocs.io/en/latest/
 
