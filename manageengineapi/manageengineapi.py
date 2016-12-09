@@ -1,4 +1,7 @@
 from __future__ import print_function
+from .ipgroup import IPGroup, IPRange, IPNetwork
+from .billing import BillPlan
+from .device import Device
 import requests
 import json
 import random
@@ -14,6 +17,7 @@ class NFApi:
     LISTIPGROUP_URI = '/api/json/nfaipgroup/listIPGroup'    
     ADDIPGROUP_URI = '/api/json/nfaipgroup/addIPGroup'
     LISTBILLPLAN_URI = '/api/json/nfabilling/listBillPlan'
+    LISTDEVLIST_URI = '/api/json/nfadevice/listDevForMultiSel'
     ADDBILLPLAN_URI = '/api/json/nfabilling/addBillPlan'
     MODIFYBILLPLAN_URI = '/api/json/nfabilling/modifyBillPlan'
     MODIFYIPGROUP_URI = '/api/json/nfaipgroup/modifyIPGroup'
@@ -22,6 +26,7 @@ class NFApi:
     CONVERSATION_URI = '/api/json/nfadevice/getConvData'
     TRAFFICDATA_URI = '/api/json/nfadevice/getTrafficData'
     LOGIN_URI = '/apiclient/ember/Login.jsp'
+    LOGOUT_URI = '/apiclient/ember/Logout.jsp'
 
     #HTTP headers data
     GET_HEADERS = {
@@ -31,22 +36,6 @@ class NFApi:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         "Connection": "keep-alive",
-    }
-
-    #Default query parameters
-    DEFAULT_IPGROUP_QUERY = {
-        'apiKey': '',
-        'DeviceID': '',
-        'Count': '10',
-        'Data': 'IN',
-        'isNetwork': 'OFF',
-        'ResolveDNS': 'false',
-        'pageCount': '1',
-        'expand': 'false',
-        'IPGroup': 'true',
-        'rows': '9',
-        'TimeFrame': 'today',
-        'expand': 'true'
     }
 
     def __init__(self, hostname, api_key, user, password, port='8080', protocol='http', timeout=30):
@@ -84,6 +73,20 @@ class NFApi:
         payload['apiKey'] = self.api_key
 
         response = self.request.get(url, params = payload)
+        
+        #Check for 5000 errors/invalid API key
+        #If response is string, can't JSON serialize
+        try:
+            if isinstance(response.json(), dict):
+                if response.json().get('error'):
+                    raise Exception('{0}: {1}'.format(
+                        response.json()['error']['code'],
+                        response.json()['error']['message']
+                        )
+                    )
+        except:
+            pass
+
         return response
 
     def _post(self, uri, payload={}):
@@ -116,7 +119,7 @@ class NFApi:
 
     def login(self):
 
-        '''Create requests session object, modify it's cookie/header
+        '''Create requests session object, modify its cookie/header
         content, log in to API and retrieve NFA_SSO token
         to be used for all functions
         '''
@@ -191,115 +194,151 @@ class NFApi:
                     print('Unknown error trying to grab cookie data from POST response data.')
                     print(e.args)
 
+    def logout(self):
+        
+        response = self._get(NFApi.LOGOUT_URI)
+        if response.status_code == 200:
+            self.logged_in = False
 
     #=================================================================
-    # Feature specific methods
+    # Administrative methods
     #=================================================================
 
 
     def get_ip_groups(self):
+
+        '''
+        All IPGroups returned as list of IPGroup objects.
+
+        :rtype: list
+        '''
     
-        '''All IPGroups returned as JSON object'''
-    
-        response = self._get(NFApi.LISTIPGROUP_URI)
-        return response.json()
+        response = self._get(NFApi.LISTIPGROUP_URI).json()
+        ip_groups = []
+
+        #Parse JSON output to IPGroup objects
+        for ipg in response['IPGroup_List']:
+            ip_obj = IPGroup(
+                app = ipg['app'],
+                dscp = ipg['dscp'],
+                name = ipg['base']['Name'],
+                description = ipg['base']['desc'],
+                speed = ipg['base']['speed'],
+                status = ipg['base']['status'],
+                ID = ipg['base']['ID'],
+                asso_device = ipg['Asso_Device'],
+                asso_device_id = ipg['Asso_Dev_id']
+            )
+            
+            #Call method to translate JSON to IP objects
+            ip_obj.process_api_group_list(ipg['ip'])
+            
+            #Finally, add ipgroup object into returned list
+            ip_groups.append(ip_obj)
+            
+        return ip_groups
 
     def get_bill_plans(self):
 
-        '''All billing plans returned as JSON'''
-        
-        response = self._get(NFApi.LISTBILLPLAN_URI)
-        return response.json()
+        '''All billing plans returned as list of BillPlan objects'''
+        response = self._get(NFApi.LISTBILLPLAN_URI).json()
+        bill_plans = []
 
-    def add_ip_group(self, ipgroup_dict):
+        #Parse JSON output to BillPlan objects
+        for bp in response['bpList']:
+            bp_obj = BillPlan(
+                name = bp['name'],
+                description = bp['desc'],
+                cost_unit = bp['coustunit'], #YEA, THEY REALLY HAVE THIS TYPO
+                period_type = bp['period'],
+                gen_date = bp['billDate'],
+                time_zone = bp['tzone'],
+                base_speed = bp['basespd1'], #1 returns int instead of str
+                base_cost = bp['basecost1'], #1 returns int instead of str
+                add_speed = bp['addspd1'],
+                add_cost = bp['addcost1'],
+                type = bp['type'],
+                percent = bp['perc'],
+                buss_id = bp['bussList'],
+                email_id = bp['emailid'],
+                email_sub = bp['emailSubject'],
+                plan_id = bp['planid']
+            )
+            bill_plans.append(bp_obj)
+
+        return bill_plans
+
+    def get_dev_list(self):
         '''
-        Function to add IPGroup. IPGroup should be passed in as dictionary. Rather than check
-        for required arguments within this function, we will simply pass JSON back to caller
-        which will inform caller that required parameters are missing.
+        List all devices/IP Groups and their unique IDs. Needed for adding
+        bill plans and IP groups. Returns a list of Device objects. 
+        '''
+
+        resp = self._get(NFApi.LISTDEVLIST_URI).json()
+        devices = []
+        for dev in resp:
+            new_dev = Device(name=dev['rName'], IP = dev['rIP'], interfaces = dev['interface'])
+            devices.append(new_dev)
+
+        return devices
+
+    def add_ip_group(self, ipgroup):
+        '''
+        Function to add IPGroup. Function should be passed an IPGroup object type.
         https://www.manageengine.com/products/netflow/help/admin-operations/ip-group-mgmt.html 
-
-        GroupName: String of group name (IE: 'test-group')
-        Desc: Description for IP Group (IE: 'Test group for python docstring')
-        speed: Speed in bits per second (IE: '50000')
-        DevList: List of interfaces/devices tied to IP Group. Value of -1 means all. 
-        status: Type of IP data being added to group, IE: include/exclude/between sites 
-            (IE: 'include,include,include')
-        IPData: List of IP Data seperated by comma. Can be combination of addresses, ranges, or sites. 
-            (IE: '8.8.8.8-8.8.4.4-1.1.1.0,255.255.255.0')
-        IPType: List of IP types seperate by comman, Can be combination of ipaddress, iprange, ipnetwork. 
-            (IE: 'ipaddress,ipaddress,ipnetwork')
-        ToIPType: Looks like this is only used for status type of 'between' and is the  definition of the 
-            remote endpoint in between definition. Should take same values as IPType. 
-
-        :param ipgroup_dct: New IPGroup object paramters
-        :type ipgroup_dict: dict
-        :returns: json
         '''
 
-        ipgroup_dict['apiKey'] = self.api_key
-        response = self._post(NFApi.ADDIPGROUP_URI, ipgroup_dict)
+        if not isinstance(ipgroup, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
+
+        #Create payload for URL encoding
+        ipg_payload = {
+            'GroupName': ipgroup.name,
+            'Desc': ipgroup.description,
+            'speed': ipgroup.speed,
+            'DevList': ipgroup.asso_dev_id,
+            'status': ','.join([s.status for s in ipgroup.ip]),
+            'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
+            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'ToIPType': ipgroup.to_ip_type,
+            'apiKey': self.api_key 
+        }
+        
+        response = self._post(NFApi.ADDIPGROUP_URI, ipg_payload)
         return response.json()
     
 
-    def add_billing(self, billing_dict):
+    def add_bill_plan(self, billplan):
 
-
-        '''Function to add billing group. 
-        https://www.manageengine.com/products/netflow/help/admin-operations/billing.html
-
-        name:  (IE: 'somecompany-billing')
-        desc:  (IE: 'somecompany BS')
-        costUnit: (IE: 'USD')
-        periodType: (IE:'monthly')
-        genDate: generate date for billing (IE: '1' is first day of month)
-        timezone: (IE: 'US/eastern')
-        baseSpeed: speed in bits per second (IE: '50000')
-        baseCost: Based cost of alloted bandwith in USD (IE: '500')
-        addSpeed: Additional speed in bits per second (IE: '1')
-        addCost: Additional cost for every unit of addSpeed overage in USD (IE: '600')
-        type: billing type, either speed or volumetric (IE: 'speed' or 'volume')
-        perc: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
-        intfID: interface ID bill plan will apply to, if applicable
-        ipgID: IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
-        bussID: ???
-        emailID: Email address for bill (IE: 'someonewhocares@somecompany.com')
-        emailsub: Subject of email (IE: 'billing report for blah blah')
-
-        :param billing_dict: New billing object parameters
-        :type billing_dict: dict
-        :returns: json
-        '''
+        if not isinstance(billplan, BillPlan):
+            raise TypeError('add_billing method did not received BillPlan object')
         
-        if not self.logged_in:
-            raise Exception('Session is not logged in. Call login() method to login first.')
+        #Construct bill plan payload
+        bp_payload = {
+            'name': billplan.name,
+            'desc': billplan.description,
+            'costUnit': billplan.cost_unit,
+            'periodType': billplan.period_type,
+            'genDate': billplan.gen_date,
+            'timezone': billplan.time_zone,
+            'apiKey': self.api_key,
+            'baseSpeed': billplan.base_speed,
+            'baseCost': billplan.base_cost,
+            'addSpeed': billplan.add_speed,
+            'addCost': billplan.add_cost,
+            'type': billplan.type,
+            'perc': billplan.percent,
+            'intfID': billplan.intf_id,
+            'ipgID': billplan.ipg_id,
+            'bussID': billplan.buss_id,
+            'emailID': billplan.email_id,
+            'emailsub': billplan.email_sub
+        }
 
-        #Apparently this URI doesn't include API key nor does it work that way, so we have to shim 
-        #the API key into our kwargs dictionary being passed as payload
-        kwargs['apiKey'] = self.api_key
-
-        #Default timezone to eastern if not already defined
-        if not kwargs.get('timezone'):
-            kwargs['timezone'] = 'US/Eastern'
-
-        #Default addSpeed/addCost if not defined since it's not required
-        if not kwargs.get('addSpeed'):
-            kwargs['addSpeed'] = '0'
-        if not kwargs.get('addCost'):
-            kwargs['addCost'] = '0'
-
-        #Adding IP group ID as required for now since there's no reason we should have a billing group not tied to an IP group
-        required_args = ['name', 'desc', 'costUnit', 'periodType', 'genDate', 'timezone', 'baseSpeed', 'baseCost', 'type', 'perc', 'emailID', 'emailsub', 'ipgID'] 
-
-        for arg in required_args:
-            if not kwargs.get(arg):
-                raise Exception('Missing required keyword argument for add_billing: {0:s}'.format(arg))
-
-        #Checks passed. Formuate data paload and POST to API.
-        post_url = '{0:s}://{1:s}{2:s}'.format(self.protocol, self.hostname, nfapi_session.ADDBILLPLAN_URI)
-        response = self.request.post(post_url, data=kwargs)
+        response = self._post(NFApi.ADDBILLPLAN_URI, bp_payload)
         return response.json()
 
-    def modify_billing(self, payload):
+    def modify_bill_plan(self, billplan):
 
         '''Function to modify billing object. Looks like it takes same paramters as
         add_billing, but must also include a unique identifier 'plan id'.
@@ -309,13 +348,31 @@ class NFApi:
         :returns: json
         '''
         
-        #Add API key to existing payload
-        payload['apiKey'] = self.api_key
+        if not isinstance(billplan, BillPlan):
+            raise TypeError('modify_billing method did not receive BillPlan object')
 
-        response = self._post(NFApi.MODIFYBILLPLAN_URI, payload)
+        bp_payload = {
+            'name': billplan.name,
+            'desc': billplan.description,
+            'apiKey': self.api_key,
+            'baseSpeed': billplan.base_speed,
+            'baseCost': billplan.base_cost,
+            'addSpeed': billplan.add_speed,
+            'addCost': billplan.add_cost,
+            'type': billplan.type,
+            'perc': billplan.percent,
+            'intfID': billplan.intf_id,
+            'ipgID': billplan.ipg_id,
+            'bussID': billplan.buss_id,
+            'emailID': billplan.email_id,
+            'emailsub': billplan.email_sub,
+            'planid': billplan.plan_id
+        }
+
+        response = self._post(NFApi.MODIFYBILLPLAN_URI, bp_payload)
         return response.json()
 
-    def modify_ip_group(self, payload):
+    def modify_ip_group(self, ipgroup):
 
         '''Function to modify IPGroup object. Doesn't appear to have any unique parameters, should be able to
         query for IPGroup object with get_ip_groups, modify what we need to modify, then pass to this function 
@@ -326,13 +383,26 @@ class NFApi:
         :returns: json
         '''
         
-        #Add API key to existing params that were passed in
-        payload['apiKey'] =  self.api_key
+        if not isinstance(ipgroup, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
         
-        response = self._post(NFApi.MODIFYIPGROUP_URI, payload)
+        #Create payload for URL encoding
+        ipg_payload = {
+            'GroupName': ipgroup.name,
+            'Desc': ipgroup.description,
+            'speed': ipgroup.speed,
+            'DevList': ipgroup.asso_dev_id,
+            'status': ','.join([s.status for s in ipgroup.ip]),
+            'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
+            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'ToIPType': ipgroup.to_ip_type,
+            'apiKey': self.api_key 
+        }
+        
+        response = self._post(NFApi.MODIFYIPGROUP_URI, ipg_payload)
         return response.json()  
 
-    def delete_ip_group(self, GroupName):
+    def delete_ip_group(self, ipg_obj):
 
         '''Function to delete an IPGroup object. The only required parameter for this is GroupName.
 
@@ -341,31 +411,38 @@ class NFApi:
         :returns: json        
         '''
 
+        if not isinstance(ipg_obj, IPGroup):
+            raise TypeError('add_ip_group method did not receive IPGroup object')
+            
         payload = {
             'apiKey': self.api_key,
-            'GroupName': GroupName
+            'GroupName': ipg_obj.name
         }
         
         response = self._post(NFApi.DELETEIPGROUP_URI, payload)
-        return response.json()
-
-    def delete_bill_plan(self, PlanID):
-
-        '''Function to delete billing plan object. The format for this call is, of course, different than the others. No data is
-        passed as urlencoded payload, API key and PlanID are both sent in the URI.
         
-        :param PlanID: ID number of bill plan
-        :type PlanID: str
-        :returns: json
+        #This returns a string, not JSON
+        return response.text
+
+    def delete_bill_plan(self, bp):
+
+        '''
+        Function to delete billing plan object. Must be passed a BillPlan object.
         '''
         
         payload = {
             'apiKey': self.api_key,
-            'planID': PlanID
+            'planID': bp.plan_id
         }
         
         response = self._post(NFApi.DELETEBILLPLAN_URI, payload)
         return response.json()
+
+
+    #=================================================================
+    # Statistic/data methods
+    #=================================================================
+    
 
     def get_group_conversation_data(self, ipgroup, payload={}):
 
