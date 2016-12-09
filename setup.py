@@ -11,5 +11,10 @@ setup(
   install_requires = [
     'requests',
   ],
+  extras_require = {
+    ':python_version < "2.7"': [
+        'ipaddress',
+    ],
+    },
   classifiers = [],
 )
