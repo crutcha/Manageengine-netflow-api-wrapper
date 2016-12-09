@@ -73,6 +73,20 @@ class NFApi:
         payload['apiKey'] = self.api_key
 
         response = self.request.get(url, params = payload)
+        
+        #Check for 5000 errors/invalid API key
+        #If response is string, can't JSON serialize
+        try:
+            if isinstance(response.json(), dict):
+                if response.json().get('error'):
+                    raise Exception('{0}: {1}'.format(
+                        response.json()['error']['code'],
+                        response.json()['error']['message']
+                        )
+                    )
+        except:
+            pass
+
         return response
 
     def _post(self, uri, payload={}):
@@ -181,13 +195,13 @@ class NFApi:
                     print(e.args)
 
     def logout(self):
-
+        
         response = self._get(NFApi.LOGOUT_URI)
         if response.status_code == 200:
             self.logged_in = False
 
     #=================================================================
-    # Feature specific methods
+    # Administrative methods
     #=================================================================
 
 
@@ -239,8 +253,8 @@ class NFApi:
                 period_type = bp['period'],
                 gen_date = bp['billDate'],
                 time_zone = bp['tzone'],
-                base_speed = bp['basespd'],
-                base_cost = bp['basecost'],
+                base_speed = bp['basespd1'], #1 returns int instead of str
+                base_cost = bp['basecost1'], #1 returns int instead of str
                 add_speed = bp['addspd1'],
                 add_cost = bp['addcost1'],
                 type = bp['type'],
@@ -324,7 +338,7 @@ class NFApi:
         response = self._post(NFApi.ADDBILLPLAN_URI, bp_payload)
         return response.json()
 
-    def modify_billing(self, payload):
+    def modify_bill_plan(self, billplan):
 
         '''Function to modify billing object. Looks like it takes same paramters as
         add_billing, but must also include a unique identifier 'plan id'.
@@ -334,10 +348,28 @@ class NFApi:
         :returns: json
         '''
         
-        #Add API key to existing payload
-        payload['apiKey'] = self.api_key
+        if not isinstance(billplan, BillPlan):
+            raise TypeError('modify_billing method did not receive BillPlan object')
 
-        response = self._post(NFApi.MODIFYBILLPLAN_URI, payload)
+        bp_payload = {
+            'name': billplan.name,
+            'desc': billplan.description,
+            'apiKey': self.api_key,
+            'baseSpeed': billplan.base_speed,
+            'baseCost': billplan.base_cost,
+            'addSpeed': billplan.add_speed,
+            'addCost': billplan.add_cost,
+            'type': billplan.type,
+            'perc': billplan.percent,
+            'intfID': billplan.intf_id,
+            'ipgID': billplan.ipg_id,
+            'bussID': billplan.buss_id,
+            'emailID': billplan.email_id,
+            'emailsub': billplan.email_sub,
+            'planid': billplan.plan_id
+        }
+
+        response = self._post(NFApi.MODIFYBILLPLAN_URI, bp_payload)
         return response.json()
 
     def modify_ip_group(self, ipgroup):
@@ -405,6 +437,12 @@ class NFApi:
         
         response = self._post(NFApi.DELETEBILLPLAN_URI, payload)
         return response.json()
+
+
+    #=================================================================
+    # Statistic/data methods
+    #=================================================================
+    
 
     def get_group_conversation_data(self, ipgroup, payload={}):
 

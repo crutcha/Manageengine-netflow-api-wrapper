@@ -13,7 +13,7 @@ class TestNFApi(unittest.TestCase):
         
         #List of all unique identifiers known
         all_devs = self.session.get_dev_list()
-        all_id = list(chain.from_iterable([x.all_idents for x in all_devs]))
+        self.all_id = list(chain.from_iterable([x.all_idents for x in all_devs]))
         
         #Create single IP object
         IP = IPNetwork('8.8.8.8')
@@ -33,6 +33,27 @@ class TestNFApi(unittest.TestCase):
 
         #Define IPGroup in object to be used later
         self.ipg = IPG
+
+        #New bill plan object
+        bp = BillPlan(
+            name = 'Unit Test Bill Plan',
+            description = 'Unit Test Bill Description',
+            cost_unit = 'USD',
+            period_type = 'Monthly',
+            gen_date = 1,
+            time_zone = 'US/Eastern',
+            base_speed = 500000,
+            base_cost = 50,
+            add_speed = 50,
+            add_cost = 100,
+            type = 'speed',
+            percent = 40,
+            email_id = 'admin@networkinit.io',
+            email_sub = 'Unit Test Email'
+        )
+
+        #Attach bill plan to object to use later
+        self.bp = bp
 
     @classmethod
     def tearDownClass(self):
@@ -65,39 +86,33 @@ class TestNFApi(unittest.TestCase):
         print('test_modify_ip_group: {0}'.format(resp))
         self.assertIn('modified successfully', resp['message'])
     
-    def test03_delete_ip_group(self):
+    def test03_add_bill_plan(self):
+        
+        #Test add_bill_plan call
+        resp = self.session.add_bill_plan(self.bp)
+        print('test_add_plan: {0}'.format(resp))
+
+    def test04_modify_bill_plan(self):
+
+        #Modify API endpoint requires a plan ID which is not returned to us when
+        #creating the bill plan. Have to query for all then select which bill
+        #plan is ours. 
+        bps = self.session.get_bill_plans()
+        for bp in bps:
+            if bp.name == self.bp.name:
+                mod_bp = bp
+
+        #Add all known IP groups to bill plan
+        mod_bp.ipg_id = ','.join([str(i.ID) for i in self.session.get_ip_groups()])
+        resp = self.session.modify_bill_plan(mod_bp)
+        print('modify_bill_plan: {0}'.format(resp))
+        self.assertIn('Updated SuccessFully', resp['message']) #Yep, another typo in their code
+
+    def test05_delete_ip_group(self):
         resp = self.session.delete_ip_group(self.ipg)
         print('test_delete_ip_group: {0}'.format(resp))
         self.assertIn('Deleted Successfully', resp)
-
-    def test04_add_bill_plan(self):
-       
-        #New bill plan object
-        bp = BillPlan(
-            name = 'Unit Test Bill Plan',
-            description = 'Unit Test Bill Description',
-            cost_unit = 'USD',
-            period_type = 'Monthly',
-            gen_date = 1,
-            time_zone = 'US/Eastern',
-            base_speed = 500000,
-            base_cost = 50,
-            add_speed = 50,
-            add_cost = 100,
-            type = 'speed',
-            percent = 40,
-            email_id = 'admin@networkinit.io',
-            email_sub = 'Unit Test Email'
-        )
-
-        #Test add_bill_plan call
-        resp = self.session.add_bill_plan(bp)
-        print('test_add_plan: {0}'.format(resp))
-
-    def test05_modify_bill_plan(self):
     
-        pass
-
     def test06_delete_bill_plan(self):
 
         #Grab unit test bill plan

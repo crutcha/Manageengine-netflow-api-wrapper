@@ -20,7 +20,7 @@ class BillPlan(object):
     :param type: billing type, either speed or volumetric (IE: 'speed' or 'volume')
     :param percent: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
     :param intf_id: interface ID bill plan will apply to, if applicable
-    :param ipg_id: IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
+    :param ipg_id: comma seperated, IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
     :param buss_id: ???
     :param email_id: Email address for bill (IE: 'someonewhocares@somecompany.com')
     :params email_sub: Subject of email (IE: 'billing report for blah blah')
