@@ -18,12 +18,19 @@ class IPGroup(object):
     https://www.manageengine.com/products/netflow/help/admin-operations/ip-group-mgmt.html 
     
     :params app: Applications
+    :type app: str
     :param dscp: QoS DSCP tags
+    :type dscp: str
     :param name: group name
+    :type name: str
     :param description: group description
+    :type description: str
     :param speed: speed in bits per second
+    :type speed: int
     :param ID: unique identifier
+    :type ID: str
     :param status: group type. include/exclude for IPs/networks, between for traffic between IPs
+    :type status: str
     '''
 
     def __init__(self, **kwargs):
@@ -55,6 +62,14 @@ class IPGroup(object):
         )
 
     def add_ip(self, obj):
+        '''
+        Method to add IPNetwork or IPRange to IPGroup object. Using this method instead of
+        appending to self.ip list validates that between type relationships are handled as
+        the API endpoint expects them.
+
+        :param obj: object to add to IPGroup
+        :type obj: manageengineapi.IPNetwork or manageengineapi.IPRange
+        '''
 
         #Check for type of IPBetween.
         if obj.status == 'between':
@@ -78,7 +93,9 @@ class IPGroup(object):
         and return list of IPNetwork/IPRange objects and whether it's
         a between relationships or not. 
 
-        returns ([], bool) 
+        :param ipgs: list of IP from JSON response response['IPGroup_List'][index]['ip']
+        :type ipgs: list
+        :returns: list or bool
         '''
         
         for ipdata in ipgs:
@@ -159,7 +176,9 @@ class IPNetwork(object):
     CIDR mask.
 
     :param cidr: network or host in CIDR format
+    :type cidr: str
     :param status: enabled/disabled
+    :type status: str
     '''
 
     def __init__(self, cidr=None, status='include'):
@@ -191,13 +210,16 @@ class IPNetwork(object):
  
 class IPRange(object):
     '''
-    Object for IP range. Constructor must be passed 2 valid IP addresses that are
-    hyphen seperated. Addresses will be stored as IPv4Address objects.
+    Object for IP range. Addresses will be stored as IPv4Address objects.
 
     :param rangestart: IP at beginning of range
+    :type rangestart: str
     :param rangeend: IP at end of range
+    :type rangeend: str
     :param netmask: subnet mask of IPs within range
+    :type netmask: str
     :param status: enabled/disabled
+    :type status: str
     '''
 
     def __init__(self, **kwargs):

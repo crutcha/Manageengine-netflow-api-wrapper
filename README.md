@@ -11,6 +11,7 @@ TODO:
 - [ ] Update all docstrings
 - [X] Convert all methods to use url encoding instead of string replacement
 - [ ] Add all statistic gathering methods
+- [ ] Updated existing statistic methods for kwarg parameters
 
 Installation
 ------------

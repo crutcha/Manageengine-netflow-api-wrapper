@@ -240,7 +240,12 @@ class NFApi:
 
     def get_bill_plans(self):
 
-        '''All billing plans returned as list of BillPlan objects'''
+        '''
+        All billing plans returned as list of BillPlan objects
+
+        :rtype: list
+        :returns: list of BillPLan
+        '''
         response = self._get(NFApi.LISTBILLPLAN_URI).json()
         bill_plans = []
 
@@ -271,7 +276,10 @@ class NFApi:
     def get_dev_list(self):
         '''
         List all devices/IP Groups and their unique IDs. Needed for adding
-        bill plans and IP groups. Returns a list of Device objects. 
+        bill plans and IP groups. Returns a list of Device objects.
+
+        :returns: list of Device
+        :rtype: list 
         '''
 
         resp = self._get(NFApi.LISTDEVLIST_URI).json()
@@ -286,6 +294,11 @@ class NFApi:
         '''
         Function to add IPGroup. Function should be passed an IPGroup object type.
         https://www.manageengine.com/products/netflow/help/admin-operations/ip-group-mgmt.html 
+        
+        :param ipgroup: object of IP Group
+        :type ipgroup: manageengineapi.IPGroup
+        :returns: json
+        :rtype: json
         '''
 
         if not isinstance(ipgroup, IPGroup):
@@ -309,6 +322,14 @@ class NFApi:
     
 
     def add_bill_plan(self, billplan):
+
+        '''
+        Function to add Bill Plan. 
+
+        :param billplan: Object of bill plan
+        :type billplan: manageengineapi.BillPlan
+        :returns: json
+        '''
 
         if not isinstance(billplan, BillPlan):
             raise TypeError('add_billing method did not received BillPlan object')
@@ -343,8 +364,8 @@ class NFApi:
         '''Function to modify billing object. Looks like it takes same paramters as
         add_billing, but must also include a unique identifier 'plan id'.
         
-        :param payload: existing billing object with updated parameters
-        :type payload: dict
+        :param billplan: existing billing object
+        :type billplan: manageengineapi.BillPlan
         :returns: json
         '''
         
@@ -378,8 +399,8 @@ class NFApi:
         query for IPGroup object with get_ip_groups, modify what we need to modify, then pass to this function 
         to udpate the existing object.
 
-        :param payload: existing IPGroup object with updated parameters
-        :type payload: dict
+        :param ipgroup: existing ip group
+        :type ipgroup: manageengineapi.IPGroup
         :returns: json
         '''
         
@@ -406,8 +427,8 @@ class NFApi:
 
         '''Function to delete an IPGroup object. The only required parameter for this is GroupName.
 
-        :param GroupName: Name of IPGroup object
-        :type GroupName: str
+        :param ipg_obj: existing ip group
+        :type ipg_obj: manageengineapi.IPGroup
         :returns: json        
         '''
 
@@ -428,6 +449,10 @@ class NFApi:
 
         '''
         Function to delete billing plan object. Must be passed a BillPlan object.
+        
+        :param bp: existing bill plan
+        :type bp: manageengineapi.BillPlan
+        :returns: json
         '''
         
         payload = {

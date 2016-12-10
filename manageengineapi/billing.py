@@ -7,23 +7,40 @@ class BillPlan(object):
     '''
     BillPlan object. 
     
-    :param name:  (IE: 'somecompany-billing')
-    :param description:  (IE: 'somecompany BS')
-    :param cost_unit: (IE: 'USD')
+    :param name: name of bill plan (IE: 'somecompany-billing')
+    :type name: str
+    :param description: description for bill plan (IE: 'somecompany BS')
+    :type description: str
+    :param cost_unit: currency (IE: 'USD')
+    :type cost_unit: int
     :param period_type: (IE:'monthly')
+    :type period_type: str
     :param gen_date: generate date for billing (IE: '1' is first day of month)
-    :param time_zone: (IE: 'US/eastern')
+    :type gen_date: int
+    :param time_zone: Time Zone(IE: 'US/eastern')
+    :type time_zone: str
     :param base_speed: speed in bits per second (IE: '50000')
-    :param base_cost: Based cost of alloted bandwith in USD (IE: '500')
+    :type base_speed: int
+    :param base_cost: Base cost of alloted bandwith(IE: '500')
+    :type base_cost: int
     :param add_speed: Additional speed in bits per second (IE: '1')
-    :param add_cost: Additional cost for every unit of addSpeed overage in USD (IE: '600')
+    :type add_speed: int
+    :param add_cost: Additional cost for every unit of additional speed overage in USD (IE: '600')
+    :type add_cost: int
     :param type: billing type, either speed or volumetric (IE: 'speed' or 'volume')
+    :type type: str
     :param percent: 95t percentile calculation. 40 for merge, 41 for seperate (IE: '40')
+    :type percent: int
     :param intf_id: interface ID bill plan will apply to, if applicable
+    :type intf_id: str
     :param ipg_id: comma seperated, IPGroup IDs bill plan will apply to (IE: '2500033,2500027,2500034,2500025')
+    :type ipg_id: str
     :param buss_id: ???
+    :type buss_id: str
     :param email_id: Email address for bill (IE: 'someonewhocares@somecompany.com')
-    :params email_sub: Subject of email (IE: 'billing report for blah blah')
+    :type str:
+    :param email_sub: Subject of email (IE: 'billing report for blah blah')
+    :type str:
 
     More info:
     https://www.manageengine.com/products/netflow/help/admin-operations/billing.html

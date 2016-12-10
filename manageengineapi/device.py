@@ -3,9 +3,13 @@ class Device(object):
     Device object. Contains all interfaces and unique IDs that apply to a device.
 
     :param name: Name of device
+    :type name: str
     :param IP: IP address of device
+    :type IP: str
     :interfaces: list of interfaces. each interface is list containing ID and name.
+    :type interfaces: list
     :all_idents: contains list of only unique identifiers of interfaces on device
+    :type all_idents: list
     '''
 
     def __init__(self, **kwargs):
