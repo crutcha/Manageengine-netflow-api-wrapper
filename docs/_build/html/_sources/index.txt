@@ -10,13 +10,16 @@ compatible and tested with v12 of NFA, not v11.
 
 Examples
 ========
+.. toctree::
+   :maxdepth: 2
+
+   examples
 
 Documentation
 =============
 
 .. toctree::
    :maxdepth: 2
-   :glob:
 
    NFApi
    billing

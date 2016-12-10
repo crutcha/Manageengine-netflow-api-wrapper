@@ -16,7 +16,7 @@ class TestNFApi(unittest.TestCase):
         self.all_id = list(chain.from_iterable([x.all_idents for x in all_devs]))
         
         #Create single IP object
-        IP = IPNetwork('8.8.8.8')
+        IP = IPNetwork(u'8.8.8.8')
         
         #Create IPGroup object
         IPG = IPGroup(
@@ -70,7 +70,7 @@ class TestNFApi(unittest.TestCase):
     def test02_modify_ip_group(self):
         
         #Add second host
-        new_ip = IPNetwork('8.8.4.4')
+        new_ip = IPNetwork(u'8.8.4.4')
         self.ipg.add_ip(new_ip)
 
         #API call with modified object
