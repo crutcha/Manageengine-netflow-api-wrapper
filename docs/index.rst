@@ -11,9 +11,10 @@ compatible and tested with v12 of NFA, not v11.
 Examples
 ========
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :glob:
 
-   examples
+   examples/*
 
 Documentation
 =============

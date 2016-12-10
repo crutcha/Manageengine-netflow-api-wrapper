@@ -8,7 +8,7 @@ left of the web UI. Once you are logged in, all cookies needed for future calls
 are stashed within the object until you logout. 
 
 Logging In
-==========
+----------
 
     import manageengine
 
@@ -21,6 +21,6 @@ Logging In
     session.login()
 
 Logging Out
-===========
+-----------
 
     session.logout()
