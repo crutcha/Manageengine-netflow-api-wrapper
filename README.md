@@ -6,10 +6,11 @@ WORK IN PROGRESS, NOT FINISHED
 TODO:
 -----
 
-- [ ] Implement modify functions to translate between JSON returned from get methods to data structure
+- [X] Implement modify functions to translate between JSON returned from get methods to data structure
       required for modify methods. (maybe feature as a class)
 - [ ] Update all docstrings
 - [X] Convert all methods to use url encoding instead of string replacement
+- [ ] Add all statistic gathering methods
 
 Installation
 ------------
@@ -22,41 +23,10 @@ Alternatively you can install it from cloned respository:
 
     python setup.py install
 
-Usage
+Documentation/Getting Started
 -----
 
-Every object within in the API has 4 methods: get, add, modify, and delete. Every method takes 
-object parameters as a dictionary. For example...
+For examples on how to get started, check out Read the Docs page:
 
-Add IP Group to track Google DNS traffic:
-
-    import manageengineapi
-
-    session = manageengineapi.NFApi(
-        'your_server_here',
-        'your_api_key', #API key found in settings
-        'apiuser', #User with administrative privs
-        'apipassword', #password
-    )
-
-    session.login()
-
-    #Add IP Group
-    ip_group_params = {
-        'GroupName': 'Google DNS',
-        'Desc': 'API test',
-        'speed': 50000,
-        'DevList': '-1',
-        'status': 'include,include',
-        'IPData': '8.8.8.8-8.8.4.4',
-        'IPType': 'ipaddress,ipaddress',
-    }
-    
-    result = session.add_ip_group(ip_group_params)
-
-JSON returned to us shows group was successfully created.
-
-    >>> result
-    {'message': 'IPGroup added successfully', 'GName': 'Google DNS'}
-
+http://manageengine-netflow-api-wrapper.readthedocs.io/en/latest/
 
