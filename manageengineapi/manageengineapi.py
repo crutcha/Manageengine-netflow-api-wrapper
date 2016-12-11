@@ -2,9 +2,16 @@ from __future__ import print_function
 from .ipgroup import IPGroup, IPRange, IPNetwork
 from .billing import BillPlan
 from .device import Device
+from .exceptions import NFApiError
 import requests
 import json
 import random
+
+#Python3 raises JSONDecodeError, 2.x raises ValueError
+try:
+    from json import JSONDecodeError
+except:
+    JSONDecodeError = None
 
 class NFApi:
 
@@ -79,13 +86,23 @@ class NFApi:
         try:
             if isinstance(response.json(), dict):
                 if response.json().get('error'):
-                    raise Exception('{0}: {1}'.format(
+                    raise NFApiError('{0}: {1}'.format(
                         response.json()['error']['code'],
                         response.json()['error']['message']
                         )
                     )
-        except:
+        except JSONDecodeError:
+            #received valid string response, python3.x
             pass
+        except ValueError:
+            #received valid string response, python2.x
+            pass
+        except NFApiError:
+            raise NFApiError('{0}: {1}'.format(
+                response.json()['error']['code'],
+                response.json()['error']['message']
+                )
+            )
 
         return response
 
