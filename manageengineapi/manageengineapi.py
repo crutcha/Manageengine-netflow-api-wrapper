@@ -284,7 +284,9 @@ class NFApi:
                 buss_id = bp['bussList'],
                 email_id = bp['emailid'],
                 email_sub = bp['emailSubject'],
-                plan_id = bp['planid']
+                plan_id = bp['planid'],
+                #TODO: Fix this hack, add some logic to return list of IPGroup
+                ipg_id = ','.join([str(x[1]) for x in bp['ipgList']])
             )
             bill_plans.append(bp_obj)
 

@@ -12,6 +12,7 @@ TODO:
 - [X] Convert all methods to use url encoding instead of string replacement
 - [ ] Add all statistic gathering methods
 - [ ] Updated existing statistic methods for kwarg parameters
+- [ ] Update ipg_id property of billplan to take actual BillPlan objects instead of string, as well as parsing for get method
 
 Installation
 ------------

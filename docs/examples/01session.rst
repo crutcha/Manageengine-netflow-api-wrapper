@@ -10,7 +10,9 @@ are stashed within the object until you logout.
 Logging In
 ----------
 
-    import manageengine
+.. code-block:: python
+
+    import manageengineapi
 
     session = manageengineapi.NFApi(
         'your_server_here',
@@ -18,9 +20,12 @@ Logging In
         'apiuser',
         'apipassword'
     )
+
     session.login()
 
 Logging Out
 -----------
+
+.. code-block:: python
 
     session.logout()
