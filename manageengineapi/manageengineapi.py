@@ -325,13 +325,13 @@ class NFApi:
 
         #Create payload for URL encoding
         ipg_payload = {
-            'GroupName': ipgroup.name,
+            'GroupName': "["+ipgroup.name+"]",
             'Desc': ipgroup.description,
             'speed': ipgroup.speed,
-            'DevList': ipgroup.asso_dev_id,
-            'status': ','.join([s.status for s in ipgroup.ip]),
+            'DevList': "["+str(ipgroup.asso_dev_id)+"]",
+            'status': "["+','.join([s.status for s in ipgroup.ip])+"]",
             'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
-            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'IPType': "["+','.join([t.type.lower() for t in ipgroup.ip])+"]",
             'ToIPType': ipgroup.to_ip_type,
             'apiKey': self.api_key 
         }
@@ -428,13 +428,13 @@ class NFApi:
         
         #Create payload for URL encoding
         ipg_payload = {
-            'GroupName': ipgroup.name,
+            'GroupName': "["+ipgroup.name+"]",
             'Desc': ipgroup.description,
             'speed': ipgroup.speed,
-            'DevList': ipgroup.asso_dev_id,
-            'status': ','.join([s.status for s in ipgroup.ip]),
+            'DevList': "["+str(ipgroup.asso_dev_id)+"]",
+            'status': "["+','.join([s.status for s in ipgroup.ip])+"]",
             'IPData': '-'.join([i.api_format for i in ipgroup.ip]),
-            'IPType': ','.join([t.type.lower() for t in ipgroup.ip]),
+            'IPType': "["+','.join([t.type.lower() for t in ipgroup.ip])+"]",
             'ToIPType': ipgroup.to_ip_type,
             'apiKey': self.api_key 
         }
@@ -456,7 +456,7 @@ class NFApi:
             
         payload = {
             'apiKey': self.api_key,
-            'GroupName': ipg_obj.name
+            'GroupName': "["+ipg_obj.name+"]"
         }
         
         response = self._post(NFApi.DELETEIPGROUP_URI, payload)
